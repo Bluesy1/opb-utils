@@ -15,7 +15,9 @@ do
     git reset --hard origin/main
     echo $FILE
     out="$(basename $FILE .md)"
-    BRANCH_NAME="$(basename $FILE .md)"
+    # BRANCH_NAME="$(basename $FILE .md)"
+    BRANCH_NAME="auto_$(basename $FILE .md)"
+
     INFO_PATH=/Users/christinayang/Documents/GitHub/OPB/opb-utils/info/$out
 
     git checkout main

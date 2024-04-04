@@ -1,0 +1,19 @@
+{'present': True,
+'val': {'params': defaultdict(<function create_data2.<locals>.<lambda> at 0x40318eb9a0>,
+        {'vars': defaultdict(<function create_data2.<locals>.<lambda> at 0x40318eb9a0>,
+            {'title': 'GPA and major'
+            }), 'df_factor': 2, 'df_residual': 192, 'meansq_factor': 0.015, 'meansq_residual': 0.0821, 'f_value': 0.1827, 'table': '<table style="width:550px">\n<tr>\n<th>df</th>\n</tr>\n</table>', 'part2': defaultdict(<function create_data2.<locals>.<lambda> at 0x40318eb9a0>,
+            {'ans1': defaultdict(<function create_data2.<locals>.<lambda> at 0x40318eb9a0>,
+                {'value': 'Since p-value $<$ 0.05, we reject $H_0$. The data provides convincing evidence of a difference between the average GPAs across three groups of majors.', 'correct': False, 'feedback': 'Try again! Check your calculations for p-value.'
+                }), 'ans2': defaultdict(<function create_data2.<locals>.<lambda> at 0x40318eb9a0>,
+                {'value': 'Since p-value $>$ 0.05, fail to reject $H_0$. The data do not provide convincing evidence of a difference between the average GPAs across three groups of majors.', 'correct': True, 'feedback': 'Correct! You can observe this from the p-value you calculated in part 1.'
+                }), 'ans3': defaultdict(<function create_data2.<locals>.<lambda> at 0x40318eb9a0>,
+                {'value': 'The data is insufficient to get the hypothesis test significance.', 'correct': False, 'feedback': 'Try calculating the p value since you have sufficient data to do this again!'
+                })
+            })
+        }), 'correct_answers': defaultdict(<function create_data2.<locals>.<lambda> at 0x40318eb9a0>,
+        {'part1_ans': 0.8332, 'part3_ans': 195
+        }), 'variant_seed': 717331185, 'options': {'useNewQuestionRenderer': False, 'question_path': '/course/questions/FM/openstat_q7_41', 'client_files_question_path': '/course/questions/FM/openstat_q7_41/clientFilesQuestion', 'client_files_course_path': '/course/clientFilesCourse', 'server_files_course_path': '/course/serverFilesCourse', 'course_extensions_path': '/course/elementExtensions'
+        }
+    }
+}

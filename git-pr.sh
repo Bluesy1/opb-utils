@@ -42,11 +42,14 @@ do
     echo "PUSHED $FILE SUCCESSFULLY"
     if [ -z "$ASSIGN" ]
     then
-        hub pull-request -d -m "$BRANCH_NAME" -m "This resolves #$ISSUE_NUMBER" -m "OPB 000: $LINK, Title: $TITLE"
+        gh pr create --draft -t "$BRANCH_NAME" -b "This resolves #$ISSUE_NUMBER" -b "OPB 000: $LINK, Title: $TITLE"
+        # hub pull-request -d -m "$BRANCH_NAME" -m "This resolves #$ISSUE_NUMBER" -m "OPB 000: $LINK, Title: $TITLE"
         echo "\$var is empty"
     else
         echo "\$var is NOT empty"
-        hub pull-request -d -m "$BRANCH_NAME" -m "This resolves #$ISSUE_NUMBER" -m "OPB 000: $LINK, Title: $TITLE" --assign $ASSIGN
+        gh pr create --draft -t "$BRANCH_NAME" -b "This resolves #$ISSUE_NUMBER
+        OPB 000: $LINK, Title: $TITLE"  --assignee $ASSIGN
+        # hub pull-request -d -m "$BRANCH_NAME" -m "This resolves #$ISSUE_NUMBER" -m "OPB 000: $LINK, Title: $TITLE" --assign $ASSIGN
     fi
     # gh pr comment $BRANCH_NAME --body "OPB 000: $LINK, Title: $TITLE"
     sleep 2

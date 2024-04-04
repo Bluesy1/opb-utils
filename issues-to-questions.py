@@ -764,6 +764,12 @@ if __name__ == "__main__":
     # latex_to_markdown('')
     # Public Web Github
     g = Github(login_or_token=GITHUB_ACCESS_TOKEN)
+    user = g.get_user()
+    print(user) # will print 'AuthenticatedUser(login=None)'
+    login = user.login
+    print(login)
+# g = Github(login_or_token='token_bla_bla', base_url='https://github.company.com/api/v3')
+
 
     # ch7issues = read_all_chapter("7", github_profiles[0:3])
     # ch8issues = read_all_chapter("8", github_profiles[3:])

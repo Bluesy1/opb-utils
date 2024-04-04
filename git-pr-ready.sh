@@ -3,13 +3,10 @@
 PL_QUESTION_PATH=/Users/christinayang/Documents/GitHub/OPB/pl-opb-ind100/questions/FM
 WRITE_PATH=/Users/christinayang/Documents/GitHub/OPB/instructor_stats_bank/source/unsorted
 
-array[0]="sophivar"
-array[1]="alebuiles"
-array[2]="IRIDIXVdt"
-array[3]="IRIDIXVdt"
-array[4]="camirr"
-array[5]="sophivar"
-# array[5]="SamuelStreet"
+array[0]="Kipkeu"
+array[1]="KafkaNoNeko"
+array[2]="Bluesy1"
+array[3]="alebuiles"
 
 size=${#array[@]}
 LINK=https://ca.prairielearn.com/pl/course_instance/4024/instructor/course_admin/questions
@@ -45,7 +42,7 @@ do
     gh pr reopen $BRANCH_NAME
     gh pr edit $BRANCH_NAME --add-label "check_syntax" --add-reviewer $REVIEWER
     # TODO: add "OPB 000: $LINK, Title: $TITLE" + link https://ca.prairielearn.com/pl/course_instance/4024/instructor
-    gh pr comment $BRANCH_NAME --body "OPB 000: $LINK, Title: $TITLE"
+    # gh pr comment $BRANCH_NAME --body "OPB 000: $LINK, Title: $TITLE"
     gh pr ready $BRANCH_NAME
     sleep 60
 done
