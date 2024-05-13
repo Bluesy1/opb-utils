@@ -23,5 +23,4 @@ topics = {
 }
 
 github_profiles = ['yangchristina', 'alebuiles', 'Kipkeu', 'KafkaNoNeko', 'Bluesy1']
-
-openstax_question_counts = [96, 125]
+openstax_question_counts = [91, 122]

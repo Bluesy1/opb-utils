@@ -13,7 +13,7 @@ GITHUB_ACCESS_TOKEN = os.environ.get("GITHUB_ACCESS_TOKEN")
 
 WRITE_PATH = './questions'
 
-def write_to_github(all_issues, body):
+def write_to_github(all_issues, body, preview=True):
     """
     {
         "issue_title": "openstax_Q1.1",
@@ -23,21 +23,23 @@ def write_to_github(all_issues, body):
     """
     g = Github(GITHUB_ACCESS_TOKEN)
 
-    # user = g.get_user()
-    # print(user) # will print 'AuthenticatedUser(login=None)'
+    user = g.get_user()
+    print(user) # will print 'AuthenticatedUser(login=None)'
     # login = user.login
     # print(login)
 
     # [print(repo) for repo in g.get_repos()]
     repo = g.get_repo("open-resources/instructor_stats_bank")
-    for i, issue in enumerate(all_issues[5:20]):
-        # 20:33
+    for i, issue in enumerate(all_issues): # 5:20
         try:
             print('issue', issue)
-            if "assignee" in issue and issue["assignee"] is not None:
-                repo.create_issue(title=issue["issue_title"], body=body, assignee=issue["assignee"])
-            else:
-                repo.create_issue(title=issue["issue_title"], body=body)
+            if preview:
+                continue
+            print("end")
+            # if "assignee" in issue and issue["assignee"] is not None:
+            #     repo.create_issue(title=issue["issue_title"], body=body, assignee=issue["assignee"])
+            # else:
+            #     repo.create_issue(title=issue["issue_title"], body=body)
             time.sleep(5)
         except Exception as e:
             print("Q", i)
@@ -57,25 +59,29 @@ def create_issues_open_stats():
     # read_chapter("7", [{"question_number": i, 'issue_title': 'TODO'} for i in range(1,10,2)])
 
 def create_issues_openstax(start_chapter=1, end_chapter=None):
-# questions = [{"question_number": i, 'issue_title': f'openstat_Q{chapter}.{i}'} for i in range(1, total_exercises+1,2)]
     if end_chapter is None:
         end_chapter = len(openstax_question_counts)
     chapters = range(start_chapter, end_chapter+1)
-    body = "This question can be found in the OpenStax textbook. For example, here is a link to one sample chapter: https://openstax.org/books/statistics/pages/1-practice"
+    body = "This question can be found in the OpenStax textbook. For example, here is a link to one sample chapter: https://openstax.org/books/introductory-statistics-2e/pages/1-practice"
 
     total_questions = sum(openstax_question_counts[(start_chapter-1):(end_chapter-1)])
     questions_per_person = 10
-    # total_questions // (len(github_profiles) + 1)
     print('questions_per_person:', questions_per_person)
 
+    print("chaps", chapters)
     all_issues = []
     for chap in chapters:
+        print("chap", chap)
         q_count = openstax_question_counts[chap-1]
         q_before = sum(openstax_question_counts[(start_chapter-1):chap-1])
+
+        # TODO: questions_per_person
         issues = [{
             "question_number": i,
             'issue_title': f'openstax_C{chap}_Q{i}',
-            "assignee": github_profiles[(q_before+i-1) // (questions_per_person * 2)] if (q_before+i-1) // questions_per_person < len(github_profiles) else None,
+            "assignee": github_profiles[
+                (q_before+i-1) // (questions_per_person * 2)
+            ] if (q_before+i-1) // (questions_per_person * 2) < len(github_profiles) else None,
         } for i in range(1, q_count+1, 2)]
         all_issues += issues
     print('all_issues:', all_issues)
@@ -87,7 +93,7 @@ if __name__ == "__main__":
     # with open('issues.txt', 'w') as f:
     #     f.write('')
 
-    create_issues_openstax(1, 1)
+    create_issues_openstax(1)
 
     # for i, issue in enumerate(all_issues[33:]):
     #     try:
