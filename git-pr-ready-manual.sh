@@ -23,7 +23,8 @@ do
     out="$(basename $FILE .md)"
     BRANCH_NAME="$(basename $FILE .md)"
     INFO_PATH=/Users/christinayang/Documents/GitHub/OPB/opb-utils/info/$out
-    ASSIGN=$(cat $INFO_PATH/assign.txt)
+    ASSIGN=yangchristina
+    # $(cat $INFO_PATH/assign.txt)
     ISSUE_NUMBER=$(cat $INFO_PATH/issue_number.txt)
     TITLE=$(cat $INFO_PATH/title.txt)
     index=$(($RANDOM % $size))
@@ -41,10 +42,14 @@ do
     git push --force-with-lease -u origin $BRANCH_NAME
     echo "PUSHED $FILE SUCCESSFULLY"
 
-    hub pull-request -m "$BRANCH_NAME" -m "This resolves #$ISSUE_NUMBER
-    OPB 000: $LINK, Title: $TITLE" --assign $ASSIGN
+    gh pr create --draft -t "$BRANCH_NAME" -b "This resolves #"
+    # -b "OPB 000: $LINK, Title: $TITLE"
+
+    # hub pull-request --assign $ASSIGN -m "$BRANCH_NAME"
+    # -m "This resolves #$ISSUE_NUMBER
+    # OPB 000: $LINK, Title: $TITLE"
     # gh pr reopen $BRANCH_NAME
-    gh pr edit $BRANCH_NAME --add-label "check_syntax" --add-reviewer $REVIEWER
+    gh pr edit $BRANCH_NAME --add-label "check_syntax" # --add-reviewer $REVIEWER
     # TODO: add "OPB 000: $LINK, Title: $TITLE" + link https://ca.prairielearn.com/pl/course_instance/4024/instructor
     # gh pr comment $BRANCH_NAME --body "OPB 000: $LINK, Title: $TITLE"
     gh pr ready $BRANCH_NAME

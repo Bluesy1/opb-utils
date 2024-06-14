@@ -388,7 +388,112 @@ def write_md(exercise):
     write_file(path, lines_to_write)
     with open(title_path, 'w') as f:
         f.write(exercise['title'].strip())
-    # print(''.join(exercise['path'].split('.')[:-1]))
     if has_long_text:
         shutil.copyfile('sample.html', f'{dir_path}/sample.html')
-    # write_file('question-paths.txt', [path])
+
+def suggested_outcomes(exercise):
+    chapter = exercise['chapter']
+    df = pd.read_csv('/Users/christinayang/Documents/GitHub/OPB/learning_outcomes/outputs_csv/LO_stats.csv')
+    df = df.loc[df['Topic'] == topics[chapter]]
+
+    question_text = '\n'.join([x['question'] for x in exercise['parts']]) + '\n' + exercise['description'] + '\n' + exercise['title'] + '\n' + '\n'.join(exercise['solutions'])
+    df['Similarity'] = df.apply(lambda row: text_similarity(row['Learning Outcome'], question_text), axis = 1)
+
+    min_value = 1
+    while len(df.index)>5:
+        df = df.loc[df['Similarity'] > min_value]
+        min_value += 0.5
+
+    values_to_insert = ''.join([f"- {row['Code']}  # {row['Learning Outcome']}\n" for index, row in df.iterrows()])
+    return values_to_insert
+
+def write_md_new(exercise):
+    solutions = exercise['solutions']
+    chapter = exercise['chapter']
+
+    dir_end ='/' + ''.join(exercise['path'].split('.')[:-1])
+    dir_path = WRITE_PATH + dir_end
+    path = dir_path + '/' + exercise['path']
+    if not os.path.exists('questions'):
+        os.mkdir('questions')
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
+    shutil.copyfile('q11_multi-part.md', path)
+
+    replace_file_line(path, 1, f"title: {exercise['title']}")
+    replace_file_line(path, 2, f"topic: {topics[chapter]}")
+    replace_file_line(path, 3, f"author: {MY_NAME}")
+    replace_file_line(path, 21, f"tags:")
+    replace_file_line(path, 22, f"- {MY_INITIALS}")
+
+    insert_into_file(path, 11, suggested_outcomes(exercise))
+
+    # TODO: write expression
+    lines_to_write = []
+    asset_lines = ["assets:"]
+    asset_to_filename = {}
+    # Do all the moving here
+    for i, a in enumerate(exercise['assets']):
+        if a.endswith('.html'):
+            asset_lines.append(f"- {a}")
+            continue
+        figure_name = move_figure(chapter, a, exercise['path'])
+        asset_to_filename[a] = figure_name
+        asset_lines.append(f"- {figure_name}")
+    lines_to_write += asset_lines
+    lines_to_write.append("server:\n  imports: |\n        import random\n        import pandas as pd\n        import problem_bank_helpers as pbh")
+    lines_to_write.append("  generate: |")
+    code_lines, params_dict = write_code(exercise)
+    lines_to_write += code_lines
+    lines_to_write.append("  prepare: |\n        pass\n  parse: |\n        pass\n  grade: |\n        pass")
+    # lines_to_write += [
+    #     "        data2 = pbh.create_data2()\n        data.update(data2)",
+    #     "  prepare: |\n        pass\n  parse: |\n        pass\n  grade: |\n        pass"
+    # ]
+    question_part_lines = []
+    for (i, e) in enumerate(exercise['parts']):
+        question_lines = [f'part{i+1}:'] + format_type_info(e['info']) + get_pl_customizations(e['info'], i)
+        question_part_lines += question_lines
+    lines_to_write += question_part_lines
+    lines_to_write += ['---', '# {{ params.vars.title }}', '', exercise['description'], '']
+
+    # TODO: ADD ASSETS HERE, how should assets be formatted?, since parts assets + main assets
+    for a in exercise['assets']:
+        filename = asset_to_filename[a] if a in asset_to_filename else a
+        if not filename.endswith('.jpg') and not filename.endswith('.jpeg') and not filename.endswith('.png'):
+            continue
+        img = f'<img src="{filename}" width=400>'
+        lines_to_write.append(img)
+    if len(exercise['assets']) > 0:
+        lines_to_write.append('')
+
+    has_long_text = False
+    if len(exercise['parts']) != len(solutions):
+        print(f"ERROR: PARTS AND SOLUTIONS LENGTHS DON'T MATCH, parts {len(exercise['parts'])}, solutions {len(solutions)}")
+        print("PARTS", len(exercise['parts']), json.dumps([x['question'] for x in exercise['parts']], indent=2))
+        print("SOLUTIONS", len(solutions), json.dumps(solutions, indent=2))
+        # print(json.dumps(exercise, indent=2))
+
+        print("\nPATH", path)
+        print()
+
+        if len(solutions) > len(exercise['parts']):
+            while len(solutions) > len(exercise['parts']):
+                solutions[1] = solutions[0] + '\n' + solutions[1]
+                solutions = solutions[1:]
+        else:
+            raise Exception("PARTS AND SOLUTIONS LENGTHS DON'T MATCH")
+    for i, part in enumerate(exercise['parts']):
+        lines_to_write += md_part_lines(part, i=i, params=params_dict, solution=solutions[i])
+        if part['info']['type'] == 'longtext':
+            has_long_text = True
+
+    lines_to_write += ['## Rubric', '', 'This should be hidden from students until after the deadline.', '']
+
+    print("WRITING TO", path)
+    write_file(path, lines_to_write)
+    # old stuff
+    # with open(title_path, 'w') as f:
+    #     f.write(exercise['title'].strip())
+    if has_long_text:
+        shutil.copyfile('sample.html', f'{dir_path}/sample.html')

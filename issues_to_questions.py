@@ -358,8 +358,6 @@ def guess_question_type(question: str):
     if split_questions:
         return [{'question': q, 'extract_solution': lambda x: x, **guess_question_type(q)} for q in split_questions]
 
-    # if question.count('if') > 2:
-    #     return {'type': 'dropdown', 'choices': generate_random_choices(4)}
     for ph in yes_no_starting_words:
         if question.strip().startswith(ph):
             return {'type': 'multiple-choice', 'choices': generate_yes_no_choices()}
@@ -415,6 +413,7 @@ def create_part(question, info, title, parts, additional_assets, number_variable
         'question': extracted_question,
         'info': info,
     })
+
     if info['type'] == 'longtext':
         additional_assets.add('sample.html')
     number_variables[num_key] = question_numbers
