@@ -57,32 +57,43 @@ def md_part_lines(part, i, params=None, solution=None):
 def get_pl_customizations(info: dict = {}, index: int = 0):
     type = info['type']
     pl_indent = '    '
-    ans = []
+    info.pop("type")
+    customizations = {}
     if type == 'multiple-choice':
-        ans = ['weight: 1']
+        customizations = {**customizations, "weight": 1}
     elif type == 'number-input':
-        # TODO: need to know if integer or not
-        if 'sigfigs' in info and info['sigfigs'] == 'integer':
-            ans = ['weight: 1', 'allow-blank: true'] #'label: $d= $',
-        else:
-            ans = ['comparison: decdig', 'digits: 2', 'weight: 1', 'allow-blank: true', 'label: $d= $']
-        if 'suffix' in info:
-            ans.append(f'suffix: {info["suffix"]}')
-        # ans = ['weight: 1', 'allow-blank: true'] # for integer
+        # # TODO: need to know if integer or not
+        # if 'sigfigs' in info and info['sigfigs'] == 'integer':
+        #     customizations["weight"] = 1
+        #     customizations["allow-blank"] = "true"
+        # else:
+        decdig_defaults = {
+            "comparison": "decdig",
+            "digits": 2,
+            "weight": 1,
+            "allow-blank": "false",
+            "label": "$d= $",
+        }
+        customizations = {**customizations, **decdig_defaults}
     elif type == 'dropdown':
-        ans = ['weight: 1', 'blank: true']
+        customizations = {**customizations, "weight": 1, "blank": "true"}
     elif type == 'checkbox':
-        ans = ['weight: 1', 'partial-credit: true', 'partial-credit-method: EDC']
+        customizations = {**customizations, "weight": 1, "partial-credit": "true", 'partial-credit-method': '"EDC"'}
     elif type == 'symbolic-input':
-        ans = ['label: $F_r = $', 'variables: "m, v, r"', 'weight: 1', 'allow-blank: false']
+        customizations = {**customizations, "label": "$F_r = $", "variables": '"m, v, r"', "weight": 1, "allow-blank": "false"}
     elif type == 'longtext':
-        ans = ['placeholder: "Type your answer here..."', f'file-name: "answer{index+1}.html"', 'quill-theme: "snow"', 'directory: clientFilesQuestion', 'source-file-name: sample.html']
+        customizations = {**customizations, "placeholder": '"Type your answer here..."', "file-name": f'"answer{index+1}.html"', "quill-theme": '"snow"', "directory": '"clientFilesQuestion"', "source-file-name": '"sample.html"'}
     elif type == 'file-upload':
-        ans = ['file-names: "file.png, file.jpg, file.pdf, filename space.png"']
+        customizations = {**customizations, "file-names": '"file.png, file.jpg, file.pdf, filename space.png"'}
     elif type == 'matching':
-        ans = ['weight: 1', 'blank: true']
-    return ['  pl-customizations:'] + apply_indent(lines=ans, indent=pl_indent)
+        customizations = {**customizations, "weight": 1, "blank": "true"}
+    customizations = {**customizations, **info}
+    lines = []
+    for (key, val) in customizations.items():
+        lines.append(f'{key}: {val}')
 
+    info['type'] = type
+    return ['  pl-customizations:'] + apply_indent(lines=lines, indent=pl_indent)
 
 
 def format_type_info(info: dict):
@@ -158,6 +169,7 @@ def write_code(exercise: dict):
 
     num_variables = exercise['num_variables']
     variables = exercise['variables']
+
     # Randomize Variables
     # v = random.randint(2,7)
     # t = random.randint(5,10)
@@ -195,6 +207,11 @@ def write_code(exercise: dict):
 
             line = f"{cur_var_name} = {num_variable_to_line_value(num)}" if not used else f"{key}_num{i+1} = {used}"
             lines.append(line)
+
+    if "tables" in exercise:
+        for (i, table) in enumerate(exercise["tables"]):
+            lines.append(f"table{i+1} = {table}")
+            lines.append(f"data2['params']['table{i+1}'] = pbh.convert_markdown_table(table{i+1})")
 
     lines.append('')
     lines.append('# store the variables in the dictionary "params"')
@@ -407,9 +424,48 @@ def suggested_outcomes(exercise):
     values_to_insert = ''.join([f"- {row['Code']}  # {row['Learning Outcome']}\n" for index, row in df.iterrows()])
     return values_to_insert
 
+def display_assets(exercise):
+    chapter = exercise['chapter']
+    asset_lines1 = ["assets:"]
+    asset_to_filename = {}
+    # Do all the moving here
+    for i, a in enumerate(exercise['assets']):
+        if a.endswith('.html'):
+            asset_lines1.append(f"- {a}")
+            continue
+        figure_name = move_figure(chapter, a, exercise['path'])
+        asset_to_filename[a] = figure_name
+        asset_lines1.append(f"- {figure_name}")
+
+    asset_lines2 = []
+    for a in exercise['assets']:
+        filename = asset_to_filename[a] if a in asset_to_filename else a
+        if not filename.endswith('.jpg') and not filename.endswith('.jpeg') and not filename.endswith('.png'):
+            continue
+        img = f'<img src="{filename}" width=400>'
+        asset_lines2.append(img)
+    if len(exercise['assets']) > 0:
+        asset_lines2.append('')
+    return asset_lines1, asset_lines2
+
+def display_extras(exercise):
+    lines_to_write = []
+    for extra in exercise["extras"]:
+        if extra == 'table':
+            tables = exercise['tables']
+            for t, table in enumerate(tables):
+                lines_to_write.append(f"{{{{{{ params.table{t+1}}}}}}}")
+            # lines_to_write.append(f"data2['params']['table'] = {table}")
+        elif extra == 'image':
+            pass # handled in assets
+        elif extra == 'graph':
+            lines_to_write.append('<pl-figure file-name="figure 1.png" type="dynamic" width="500px"></pl-figure>')
+    return lines_to_write
+
 def write_md_new(exercise):
     solutions = exercise['solutions']
     chapter = exercise['chapter']
+    extras = exercise['extras']
 
     dir_end ='/' + ''.join(exercise['path'].split('.')[:-1])
     dir_path = WRITE_PATH + dir_end
@@ -430,26 +486,20 @@ def write_md_new(exercise):
 
     # TODO: write expression
     lines_to_write = []
-    asset_lines = ["assets:"]
-    asset_to_filename = {}
-    # Do all the moving here
-    for i, a in enumerate(exercise['assets']):
-        if a.endswith('.html'):
-            asset_lines.append(f"- {a}")
-            continue
-        figure_name = move_figure(chapter, a, exercise['path'])
-        asset_to_filename[a] = figure_name
-        asset_lines.append(f"- {figure_name}")
-    lines_to_write += asset_lines
-    lines_to_write.append("server:\n  imports: |\n        import random\n        import pandas as pd\n        import problem_bank_helpers as pbh")
+
+    asset_lines1, asset_lines2 = display_assets(exercise)
+    lines_to_write += asset_lines1
+
+    all_imports = set(["import random", "import pandas as pd", "import problem_bank_helpers as pbh"])
+    all_imports.union(set(exercise["imports"]))
+
+    imports_string = "\n        ".join(list(all_imports))
+    lines_to_write.append(f"server:\n  imports: |\n        {imports_string}")
     lines_to_write.append("  generate: |")
     code_lines, params_dict = write_code(exercise)
     lines_to_write += code_lines
+
     lines_to_write.append("  prepare: |\n        pass\n  parse: |\n        pass\n  grade: |\n        pass")
-    # lines_to_write += [
-    #     "        data2 = pbh.create_data2()\n        data.update(data2)",
-    #     "  prepare: |\n        pass\n  parse: |\n        pass\n  grade: |\n        pass"
-    # ]
     question_part_lines = []
     for (i, e) in enumerate(exercise['parts']):
         question_lines = [f'part{i+1}:'] + format_type_info(e['info']) + get_pl_customizations(e['info'], i)
@@ -458,14 +508,9 @@ def write_md_new(exercise):
     lines_to_write += ['---', '# {{ params.vars.title }}', '', exercise['description'], '']
 
     # TODO: ADD ASSETS HERE, how should assets be formatted?, since parts assets + main assets
-    for a in exercise['assets']:
-        filename = asset_to_filename[a] if a in asset_to_filename else a
-        if not filename.endswith('.jpg') and not filename.endswith('.jpeg') and not filename.endswith('.png'):
-            continue
-        img = f'<img src="{filename}" width=400>'
-        lines_to_write.append(img)
-    if len(exercise['assets']) > 0:
-        lines_to_write.append('')
+    lines_to_write += asset_lines2
+
+    lines_to_write += display_extras(exercise)
 
     has_long_text = False
     if len(exercise['parts']) != len(solutions):
@@ -497,3 +542,4 @@ def write_md_new(exercise):
     #     f.write(exercise['title'].strip())
     if has_long_text:
         shutil.copyfile('sample.html', f'{dir_path}/sample.html')
+    return path
