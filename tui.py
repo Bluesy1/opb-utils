@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import re
 import subprocess
 load_dotenv()
+TESTING = False
 
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME")
 
@@ -56,7 +57,7 @@ def is_int(s: str) -> bool:
         return True
 validate_int = lambda text: True if is_int(text) else "Please enter an integer."
 
-def ask_int(question: str, default=None) -> int:
+def ask_int(question: str, default="") -> int:
     return int(questionary.text(question, validate=validate_int, default=str(default)).ask())
 
 question_types = {
@@ -146,6 +147,7 @@ def question_type_from_solution(solution: str) -> str | None:
         return "true-false"
     return None
 
+exercise = {}
 assets = []
 variables = {}
 chapter = questionary.text("Chapter").ask()
@@ -168,8 +170,12 @@ if "table" in extras:
     num_tables = ask_int("How many tables", default=1)
     tables = []
     for i in range(num_tables):
-        table = []
+        table = {
+            "matrix": []
+        }
         table_str: str = questionary.text("Paste in table").ask()
+        table["first_row_is_header"] = questionary.confirm("Is the first row a header?").ask()
+        table["first_col_is_header"] = questionary.confirm("Is the first column a header?").ask()
         rows = table_str.split("\n")
         for row_str in rows:
             row_str = row_str.strip()
@@ -177,37 +183,52 @@ if "table" in extras:
                 continue
             row = [x.strip() for x in row_str.split("\t")]
             print("row", row)
-            table.append(row)
+            table["matrix"].append(row)
         tables.append(table)
         # [["a", "b", "c"], ["x", "1"]]
-    variables["tables"] = tables
+    exercise["tables"] = tables
 if "graph" in extras:
     num_graphs = ask_int("How many graphs", default=1)
     graphs = []
     for i in range(num_graphs):
         graph = {}
         graph["type"] = questionary.select(
-            "Graph type",
-            choices=["bar", "line", "scatter", "box plot", "histogram"],
+            f"Graph {i+1} type",
+            choices=["bar", "line", "scatter", "box plot", "histogram", "other"],
+            default="box plot"
         ).ask()
-        # graph["title"] = questionary.text("Graph title").ask()
-        # graph["x"] = questionary.text("X-axis label").ask()
-        # graph["y"] = questionary.text("Y-axis label").ask()
-        # graph["data"] = []
-        # num_data = ask_int("Number of data sets")
-        # for j in range(num_data):
-        #     data = {}
-        #     data["label"] = questionary.text(f"Data set {j+1} label").ask()
-        #     data["points"] = []
-        #     num_points = ask_int("Number of points")
-        #     for k in range(num_points):
-        #         point = {}
-        #         point["x"] = questionary.text(f"X value for point {k+1}").ask()
-        #         point["y"] = questionary.text(f"Y value for point {k+1}").ask()
-        #         data["points"].append(point)
-        #     graph["data"].append(data)
-        # graphs.append(graph)
-    variables["graphs"] = graphs
+        if graph["type"] == "box plot":
+            num_box = ask_int("Number of box plots", default=1)
+            if num_box > 1:
+                graph["data"] = [[None] for i in range(num_box)]
+            else:
+                graph["data"] = [None]
+
+        known_info = questionary.checkbox(
+            'Select known/controlled params',
+            choices=[
+                "title",
+                "x-label",
+                "y-label",
+                "data",
+                "mean",
+                "median",
+                "mean",
+                "std",
+                "num_bins",
+                "first_quartile",
+                "third_quartile",
+                "min",
+                "max",
+                "sample_size",
+            ]).ask()
+        if "median" in known_info and "mean" in known_info:
+            print("Cannot have both mean and median. Only median will be applied.")
+        for op in known_info:
+            graph[op] = questionary.text(f"{i+1}) {graph['type']} {op} =").ask()
+        graphs.append(graph)
+
+    exercise["graphs"] = graphs
 
 num_parts = ask_int("Number of parts")
 num_variants = ask_int("Number of variants with this description+#parts", default=1)
@@ -246,7 +267,8 @@ for (i, variant) in enumerate(range(num_variants)):
 
     variants.append(variant)
     path = f"openstax_C{chapter}_Q{'_Q'.join([str(x) for x in question_numbers])}"
-    full_path = write_md_new({
+    exercise = {
+        **exercise,
         "title": title,
         "description": variant["desc"],
         "parts": variant["parts"],
@@ -258,9 +280,12 @@ for (i, variant) in enumerate(range(num_variants)):
         "solutions": solutions,
         "imports": [],
         "extras": extras,
-    })
-    # subprocess.check_call("./git-pr-first.sh %s %s %s" % (path, str(arg2), arg3), shell=True)
-    subprocess.check_call(f'./git-pr-first.sh {path} "{title}" {GITHUB_USERNAME} {' '.join(issues)}', shell=True)
+    }
+    # print(exercise)
+    full_path = write_md_new(exercise)
+    if not TESTING:
+        # subprocess.check_call("./git-pr-first.sh %s %s %s" % (path, str(arg2), arg3), shell=True)
+        subprocess.check_call(f'./git-pr-first.sh {path} "{title}" {GITHUB_USERNAME} {" ".join(issues)}', shell=True)
     subprocess.call(f'./pl-questions.sh', shell=True)
 
 print(variants)

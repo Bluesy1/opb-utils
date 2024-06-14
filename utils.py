@@ -17,7 +17,7 @@ def uniq_by(list1, fn=None):
         seen_keys.add(key)
     return unique_list
 
-def apply_indent(lines, indent):
+def apply_indent(lines, indent='        '):
     return [indent + x for x in lines]
 
 

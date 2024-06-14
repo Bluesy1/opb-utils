@@ -20,6 +20,7 @@ INFO_PATH = './info'
 MY_NAME = os.environ.get("MY_NAME")
 MY_INITIALS = os.environ.get("MY_INITIALS")
 
+TAB = '  '
 def md_part_lines(part, i, params=None, solution=None):
     q_type = part['info']['type']
     answer_section = ''
@@ -210,8 +211,8 @@ def write_code(exercise: dict):
 
     if "tables" in exercise:
         for (i, table) in enumerate(exercise["tables"]):
-            lines.append(f"table{i+1} = {table}")
-            lines.append(f"data2['params']['table{i+1}'] = pbh.convert_markdown_table(table{i+1})")
+            lines.append(f"table{i+1} = {table['matrix']}")
+            lines.append(f"data2['params']['table{i+1}'] = pbh.convert_markdown_table(table{i+1}, width='550px', first_row_is_header={table['first_row_is_header']}, first_col_is_header={table['first_col_is_header']},)")
 
     lines.append('')
     lines.append('# store the variables in the dictionary "params"')
@@ -286,7 +287,100 @@ def write_code(exercise: dict):
         # data2["params"]["part1"]["ans1"]["correct"] = False
         # data2["params"]["part1"]["ans1"]["feedback"] = "This is a random number, you probably selected this choice by mistake! Try again please!"
 
+def write_graph(exercise: dict):
+    indent = '        '
+    outer_lines = ['if data["filename"] == "figure 1.png":','']
+    lines = []
 
+    graphs = exercise["graphs"]
+    axis_str = ', '.join([f'ax{i+1}' for i in range(len(graphs))])
+    f'fig, ({axis_str}) = plt.subplots({1}, {len(graphs)}, figsize=(10, 6))' # Create n subplots
+
+    for i, graph in enumerate(graphs):
+        graph_type: str = graph["type"]
+        lines.append('')
+        lines.append(f'# {graph_type}')
+        ax = f'ax{i+1}'
+        if graph_type == "other":
+            lines.append("# graph code here...")
+        elif graph_type == "scatter":
+            raise Exception("Scatter plots not supported yet")
+        elif graph_type == "histogram":
+            num_bins = graph["num_bins"] if "num_bins" in graph else "num_bins"
+            if "sample_size" in graph:
+                lines.append(f"num_samples = {graph['sample_size']}")
+            if "min" in graph:
+                lines.append(f"data_range_min = {graph['min']}")
+            if "max" in graph:
+                lines.append(f"data_range_max = {graph['max']}")
+            lines.append(f"data{i+1} = np.random.uniform(low=data_range_min, high=data_range_max, size=num_samples)")
+            if "median" in graph:
+                lines.append(f"target_median = {graph['median']}")
+                lines.append(f"data{i+1} = data{i+1} * (target_median / (data_range_max - data_range_min)) + data_range_min")
+            lines.append(f"{ax}.hist(data{i+1}, bins={num_bins}, edgecolor='black')")
+            lines.append(f"{ax}.grid(True)")
+        elif graph_type == "bar":
+            raise Exception("Bar plots not supported yet")
+        elif graph_type == "line":
+            raise Exception("Line plots not supported yet")
+        elif graph_type == "box plot":
+            data = graph["data"]
+            # lines.append("fig, ax = plt.subplots(figsize=(7, 6))")
+            if not isinstance(data[0], list):
+                # single box plots
+                # data is a dict
+                lines += [
+                    f"box_plot_data_{i+1} = np.round(np.random.uniform(3.5, 3.8, 100), 1)"
+                    f"# np.round(np.random.normal(100, 10, 200), 1)"
+                    f"{ax}.boxplot(box_plot_data_{i+1}, showmeans=True, meanline=True)"
+                ]
+            else:
+                # multiple box plots
+                lines.append('')
+
+                if "median" in graph:
+                    if '[' in graph['median'] and ']' in graph['median']:
+                        lines.append(f"new_medians = {graph['median']}")
+                    else:
+                        lines.append(f"new_medians = [{graph['median']} for _ in range({len(data)})]")
+                else:
+                    if "mean" in graph:
+                        if '[' in graph['mean'] and ']' in graph['mean']:
+                            lines.append(f"new_means = {graph['mean']}")
+                        else:
+                            lines.append(f"new_means = [{graph['mean']} for _ in range({len(data)})]")
+                    else:
+                        lines.append(f"new_means = [np.random.uniform(3.5, 3.8) for _ in range({len(data)})]")
+
+                lines.append()
+                for i, box in enumerate(data):
+                    # case for box is None
+                    lines.append(f"box_plot_data_{i+1} = np.round(np.random.uniform(3.5, 3.8, 100), 1)")
+                    if "median" in graph:
+                        lines.append(f"box_plot_data_{i+1} = box_plot_data_{i+1} + (new_medians[{i}] - np.median(box_plot_data_{i+1}))")
+                    else:
+                        lines.append(f"box_plot_data_{i+1} = box_plot_data_{i+1} + (new_means[{i}] - np.mean(box_plot_data_{i+1}))")
+
+                data_array = '['+ ', '.join([f"box_plot_data_{i+1}" for i in range(len(data))]) + ']'
+                lines.append('')
+                labels = f', labels={graph["labels"]}' if "labels" in graph and len(graph["labels"]) > 0 else ''
+                lines.append(f"{ax}.boxplot({data_array}{labels}, showmeans=True, meanline=True)")
+                lines.append('')
+                lines.append('# Annotate the new means on the plot')
+                lines.append('for i, mean in enumerate(new_means):')
+                lines.append(f"{TAB}{ax}.text(i + 1, mean, f'{{mean:.2f}}', color='black', fontsize=9, ha='center', va='bottom')")
+        else:
+            raise Exception(f"Graph type {graph_type} not supported")
+        if "title" in graph:
+            lines.append(f"{ax}.set_title('{graph['title']}')")
+        if "x-label" in graph:
+            lines.append(f"{ax}.set_xlabel('{graph['x-label']}')")
+        if "y-label" in graph:
+            lines.append(f"{ax}.set_ylabel('{graph['y-label']}')")
+    lines += ["", "plt.tight_layout()", ""]
+    outer_lines += apply_indent(lines, TAB)
+    outer_lines += ["buf = io.BytesIO()", 'plt.savefig(buf, format="png")', 'return buf']
+    return apply_indent(outer_lines, indent)
 
 def write_md(exercise):
     solutions = exercise['solutions']
@@ -492,12 +586,22 @@ def write_md_new(exercise):
 
     all_imports = set(["import random", "import pandas as pd", "import problem_bank_helpers as pbh"])
     all_imports.union(set(exercise["imports"]))
+    if "graphs" in exercise:
+        all_imports.add("import matplotlib.pyplot as plt")
+        all_imports.add("import io")
+        all_imports.add("import numpy as np")
 
     imports_string = "\n        ".join(list(all_imports))
     lines_to_write.append(f"server:\n  imports: |\n        {imports_string}")
     lines_to_write.append("  generate: |")
     code_lines, params_dict = write_code(exercise)
     lines_to_write += code_lines
+
+
+    if "graphs" in exercise:
+        lines_to_write.append("  file: |")
+        graph_lines = write_graph(exercise)
+        lines_to_write += graph_lines
 
     lines_to_write.append("  prepare: |\n        pass\n  parse: |\n        pass\n  grade: |\n        pass")
     question_part_lines = []
