@@ -1,14 +1,16 @@
 import questionary
 from issues_to_questions import generate_yes_no_choices, generate_true_false_choices
 from write_md import write_md_new
-from gpt import ask_mc_options
+from gpt import ask_mc_options, ask_number_code
 import os
+import os.path
 from dotenv import load_dotenv
 import re
 import subprocess
 import random
+import json
 load_dotenv()
-TESTING = True
+TESTING = False
 
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME")
 
@@ -28,6 +30,14 @@ ch1_matching_type = {
         {'value': '"Statement 4"', 'matches': 'Categorical' },
     ],
 }
+
+def write_json(data: dict, filename="saved.json"):
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+def read_json(filename="saved.json"):
+    with open(filename) as f:
+        return json.load(f)
 
 def generate_given_choices(options: list, answer: str, question: str):
     if answer:
@@ -71,17 +81,14 @@ def ask_int(question: str, default="") -> int:
 
 question_types = {
     'multiple-choice': {
-        "ask_choices": True,
     },
     'number-input': {
     },
     'longtext': {
     },
     'dropdown': {
-        "ask_choices": True,
     },
     'checkbox': {
-        "ask_choices": True,
     },
     'matrix': {
     },
@@ -124,12 +131,13 @@ def other_asks(part: dict, solution: str):
         case "number-input":
             digits = ask_int("Digits")
             info["digits"] = digits
-            prefix = questionary.text(f"Prefix", default="$d=$").ask()
+            prefix = questionary.text(f"Prefix", default="$p=$").ask()
             if prefix:
                 info["label"] = prefix
             suffix = questionary.text(f"Suffix").ask()
             if suffix:
                 info["suffix"] = suffix
+            info["code"] = ask_number_code(question, solution)
         case "matching":
             info = {**info, **ch1_matching_type}
     part["info"] = info
@@ -147,9 +155,9 @@ def extract_variables(text: str, variables: dict) -> list:
             name = ""
             value = None
             split = var.split(":")
-            name = split[0]
+            name = split[0].strip()
             if len(split) > 1:
-                value = split[1]
+                value = split[1].strip()
             if value:
                 variables[name] = value
             res += f"{{{{ params.{name} }}}}"
@@ -165,153 +173,199 @@ def question_type_from_solution(solution: str) -> str | None:
         return "yes-no"
     return None
 
+def ask_if_not_exists(exercise: dict, key: str, question: str, variables: dict, default="", parser=None):
+    if parser is None:
+        parser = lambda x: x
+    if key not in exercise:
+        value = parser(questionary.text(question, default=default).ask())
+        if isinstance(value, str):
+            value = extract_variables(value, variables=variables)
+        exercise[key] = value
+        write_json(exercise)
+    return exercise[key]
+
+def set_default(exercise: dict, key: str, value: str):
+    if key not in exercise:
+        exercise[key] = value
+        write_json(exercise)
+    return exercise[key]
+
 def start_tui():
     exercise = {}
-    assets = []
     variables = {}
-    chapter = questionary.text("Chapter").ask()
-    question_numbers = [int(s) for s in split_comma(questionary.text("Question numbers (comma separated)").ask())]
-    issues = split_comma(questionary.text("What issues does this resolve (comma separated)").ask())
-    title = questionary.text("Title").ask()
-    desc = extract_variables(questionary.text("Description").ask(), variables=variables)
+    if os.path.isfile("saved.json") and questionary.confirm("Would you like to use saved data?").ask():
+        exercise = read_json()
+        if "variables" in exercise:
+            variables = exercise["variables"]
+    try:
+        set_default(exercise, "assets", [])
+        chapter = ask_if_not_exists(exercise, key="chapter", question="Chapter", variables=variables)
 
-    extras = questionary.checkbox(
-        'Select extra',
-        choices=[
-            "table",
-            "image",
-            "graph",
-        ]).ask()
+        question_numbers = ask_if_not_exists(exercise, key="question_numbers", question="Question numbers (comma separated)", variables=variables,
+                                            parser=lambda x : [int(s) for s in split_comma(x)])
+        branch_name = f"openstax_C{chapter}_Q{'_Q'.join([str(x) for x in question_numbers])}"
+        exercise["branch_name"] = branch_name
+        exercise["path"] = f"{branch_name}.md"
+        issues = ask_if_not_exists(exercise, key="issues", question="What issues does this resolve (comma separated)", variables=variables, parser=split_comma)
+        title = ask_if_not_exists(exercise, key="title", question="Title", variables=variables)
+        desc = ask_if_not_exists(exercise, key="description", question="Description", variables=variables)
 
-    if "image" in extras:
-        assets += split_comma(questionary.text("Image paths (comma separated)").ask())
-    if "table" in extras:
-        num_tables = ask_int("How many tables", default=1)
-        tables = []
-        for i in range(num_tables):
-            table = {
-                "matrix": []
-            }
-            table_str: str = questionary.text("Paste in table").ask()
-            table["first_row_is_header"] = questionary.confirm("Is the first row a header?").ask()
-            table["first_col_is_header"] = questionary.confirm("Is the first column a header?").ask()
-            rows = table_str.split("\n")
-            for row_str in rows:
-                row_str = row_str.strip()
-                if not row_str:
-                    continue
-                row = [x.strip() for x in row_str.split("\t")]
-                print("row", row)
-                table["matrix"].append(row)
-            tables.append(table)
-            # [["a", "b", "c"], ["x", "1"]]
-        exercise["tables"] = tables
-    if "graph" in extras:
-        num_graphs = ask_int("How many graphs", default=1)
-        graphs = []
-        for i in range(num_graphs):
-            graph = {
-                "variables": {},
-            }
-            graph["type"] = questionary.select(
-                f"Graph {i+1} type",
-                choices=["bar", "line", "scatter", "box plot", "histogram", "other"],
-                default="box plot"
-            ).ask()
-            if graph["type"] == "box plot":
-                num_box = ask_int("Number of box plots", default=1)
-                if num_box > 1:
-                    graph["data"] = [[None] for i in range(num_box)]
-                else:
-                    graph["data"] = [None]
-
-            known_info = questionary.checkbox(
-                'Select known/controlled params',
+        if "extras" not in exercise:
+            exercise["extras"] = questionary.checkbox(
+                'Select extra',
                 choices=[
-                    "title",
-                    "x_label",
-                    "y_label",
-                    "data",
-                    "mean",
-                    "median",
-                    "mean",
-                    "std",
-                    "num_bins",
-                    "q1",
-                    "q3",
-                    "min",
-                    "max",
-                    "sample_size",
+                    "table",
+                    "image",
+                    "graph",
                 ]).ask()
-            if "median" in known_info and "mean" in known_info:
-                print("Cannot have both mean and median. Only median will be applied.")
-            for op in known_info:
-                graph["variables"][op] = questionary.text(f"{i+1}) {graph['type']} {op} =").ask()
-            graphs.append(graph)
 
-        exercise["graphs"] = graphs
+        if "image" in exercise["extras"]:
+            exercise["assets"] += split_comma(questionary.text("Image paths (comma separated)").ask())
+        if "table" in exercise["extras"]:
+            num_tables = ask_int("How many tables", default=1)
+            tables = []
+            for i in range(num_tables):
+                table = {
+                    "matrix": []
+                }
+                table_str: str = questionary.text("Paste in table").ask()
+                table["first_row_is_header"] = questionary.confirm("Is the first row a header?").ask()
+                table["first_col_is_header"] = questionary.confirm("Is the first column a header?").ask()
+                rows = table_str.split("\n")
+                for row_str in rows:
+                    row_str = row_str.strip()
+                    if not row_str:
+                        continue
+                    row = [x.strip() for x in row_str.split("\t")]
+                    print("row", row)
+                    table["matrix"].append(row)
+                tables.append(table)
+                # [["a", "b", "c"], ["x", "1"]]
+            exercise["tables"] = tables
+        if "graph" in exercise["extras"]:
+            num_graphs = ask_int("How many graphs", default=1 if "graphs" not in exercise else len(exercise["graphs"]))
+            exercise["graphs"] = [] if "graphs" not in exercise else exercise["graphs"]
+            graphs_done = len(exercise["graphs"])
+            for i in range(graphs_done, num_graphs):
+                graph = {
+                    "variables": {},
+                }
+                graph["type"] = questionary.select(
+                    f"Graph {i+1} type",
+                    choices=["bar", "line", "scatter", "box plot", "histogram", "other"],
+                    default="box plot"
+                ).ask()
+                if graph["type"] == "box plot":
+                    is_vertical = questionary.confirm("Is the box plot vertical?").ask()
+                    graph["is_vertical"] = is_vertical
+                    num_box = ask_int("Number of box plots", default=1)
+                    if num_box > 1:
+                        graph["data"] = [[None] for i in range(num_box)]
+                    else:
+                        graph["data"] = [None]
+                default_graph_dict = {
+                    "box plot": "q3",
+                    "histogram": "num_bins",
+                }
+                known_info = questionary.checkbox(
+                    'Select known/controlled params',
+                    choices=[
+                        "title",
+                        "x_label",
+                        "y_label",
+                        "data",
+                        "mean",
+                        "median",
+                        "mean",
+                        "std",
+                        "num_bins",
+                        "min_val",
+                        "max_val",
+                        "q1",
+                        "q3",
+                        "whislow",
+                        "whishigh",
+                        "sample_size",
+                    ], default=default_graph_dict[graph["type"]] if graph["type"] in default_graph_dict else None).ask()
+                if "median" in known_info and "mean" in known_info:
+                    print("Cannot have both mean and median. Only median will be applied.")
+                for op in known_info:
+                    graph["variables"][op] = questionary.text(f"{i+1}) {graph['type']} {op} =").ask()
+                if len(exercise["graphs"]) > i:
+                    exercise["graphs"][i] = graph
+                else:
+                    exercise["graphs"].append(graph)
+                write_json(exercise)
 
-    num_parts = ask_int("Number of parts")
-    num_variants = 1 # ask_int("Number of variants with this description+#parts", default=1)
-    variants = []
-    #     {
-#         "question": f"A market researcher polls every {nth} person who walks into a store.",
-#         "options": options_sampling
-#     },
-#     {
-#         "question": f"A computer generates {rand_n} random numbers, and {rand_n} people whose names correspond with the numbers on the list are chosen.",
-#         "options": options_sampling_2
-#     }
+        num_parts = ask_int("Number of parts", default=len(exercise["parts"]) if "parts" in exercise else "")
+        num_variants = 1 # ask_int("Number of variants with this description+#parts", default=1)
+        variants = []
+        print("num_parts", num_parts)
+        #     {
+        #         "question": f"A market researcher polls every {nth} person who walks into a store.",
+        #         "options": options_sampling
+        #     },
+        #     {
+        #         "question": f"A computer generates {rand_n} random numbers, and {rand_n} people whose names correspond with the numbers on the list are chosen.",
+        #         "options": options_sampling_2
+        #     }
 
-    for (i, variant) in enumerate(range(num_variants)):
-        print(f"{title} v{i+1}")
-        variant = {
-            "desc": desc,
-            "parts": []
+        for (i, variant) in enumerate(range(num_variants)):
+            print(f"{title} v{i+1}")
+            variant = {
+                "desc": desc,
+                "parts": set_default(exercise, "parts", [])
+            }
+            solutions = [part["solution"] for part in variant["parts"]]
+            # solutions = [] if "solutions" not in exercise else exercise["solutions"]
+            print("solutions", solutions)
+            parts_start_at = 0 if "parts" not in exercise else len(exercise["parts"])
+            for p in range(parts_start_at, num_parts):
+                solutions.append(questionary.text(f"pt.{p+1} solution?").ask())
+            # create_part
+            for p in range(parts_start_at, num_parts):
+                part = {}
+                part["solution"] = extract_variables(solutions[p], variables=variables)
+                part["question"] = extract_variables(questionary.text(f"Question text for v{i+1} - pt.{p+1}").ask(), variables=variables)
+
+                part["type"] = questionary.select(
+                    f"pt.{p+1} question type?",
+                    choices=list(question_types.keys()),
+                    default=question_type_from_solution(part["solution"])
+                    ).ask()  # returns value of selection
+                other_asks(part, part["solution"])
+                variant["parts"].append(part)
+
+            variants.append(variant)
+
+        variant = random.choice(variants)
+        exercise = {
+            **exercise,
+            "title": title,
+            "description": variant["desc"],
+            "parts": variant["parts"],
+            "chapter": chapter,
+            "path": f"{branch_name}.md",
+            "num_variables": {},
+            "variables": variables,
+            "solutions": solutions,
+            "imports": [],
+            "finished": True,
         }
-        solutions = []
-        for p in range(num_parts):
-            solutions.append(questionary.text(f"pt.{p+1} solution?").ask())
-        # create_part
-        for p in range(num_parts):
-            part = {}
-            part["solution"] = extract_variables(solutions[p], variables=variables)
-            part["question"] = extract_variables(questionary.text(f"Question text for v{i+1} - pt.{p+1}").ask(), variables=variables)
+        write_json(exercise)
+        print("Wrote to saved.json")
+        full_path = write_md_new(exercise)
+        if not TESTING:
+            # subprocess.check_call("./git-pr-first.sh %s %s %s" % (path, str(arg2), arg3), shell=True)
+            subprocess.check_call(f'./git-pr-first.sh {branch_name} "{title}" {GITHUB_USERNAME} {" ".join(issues)}', shell=True)
+        subprocess.call(f'./pl-questions.sh', shell=True)
 
-            part["type"] = questionary.select(
-                f"pt.{p+1} question type?",
-                choices=list(question_types.keys()),
-                default=question_type_from_solution(part["solution"])
-                ).ask()  # returns value of selection
-            other_asks(part, part["solution"])
-            variant["parts"].append(part)
-
-        variants.append(variant)
-
-    variant = random.choice(variants)
-    path = f"openstax_C{chapter}_Q{'_Q'.join([str(x) for x in question_numbers])}"
-    exercise = {
-        **exercise,
-        "title": title,
-        "description": variant["desc"],
-        "parts": variant["parts"],
-        "chapter": chapter,
-        "path": f"{path}.md",
-        "assets": assets,
-        "num_variables": {},
-        "variables": variables,
-        "solutions": solutions,
-        "imports": [],
-        "extras": extras,
-    }
-    # print(exercise)
-    full_path = write_md_new(exercise)
-    if not TESTING:
-        # subprocess.check_call("./git-pr-first.sh %s %s %s" % (path, str(arg2), arg3), shell=True)
-        subprocess.check_call(f'./git-pr-first.sh {path} "{title}" {GITHUB_USERNAME} {" ".join(issues)}', shell=True)
-    subprocess.call(f'./pl-questions.sh', shell=True)
-
-    print(variants)
+        print(variants)
+    except Exception as e:
+        print(e)
+        write_json(exercise)
+        print("Wrote to saved.json")
+        return
 #                 exercises.append({
 
 if __name__ == "__main__":

@@ -105,7 +105,7 @@ def format_type_info(info: dict):
     if info_type == 'longtext':
         list.append('gradingMethod: Manual')
     if info_type == 'number-input' and 'sigfigs' in info and info['sigfigs'] == 'integer':
-        list.append('label: $d=$')
+        list.append('label: $p=$')
     if info_type == 'matching':
         list.append('showCorrectAnswer: true')
     return apply_indent(list, indent)
@@ -179,6 +179,8 @@ def write_code(exercise: dict):
     # region Handle variables
     used_by = {}
     for (var_name, value) in variables.items():
+        if string_is_numeric(value):
+            value = float(value)
         if type(value) == float:
             num = value
             used = used_by[num] if (num in used_by) else ''
@@ -191,7 +193,8 @@ def write_code(exercise: dict):
             used_by[value] = var_name
     lines.append('')
     for (var_name, value) in variables.items():
-        values = var_name.split('_')
+        # values = var_name.split('_') # WARNING: THIS PART WAS IN OLD
+        values = [var_name]
         cur_var_line = f"data2['params']"
         for val in values:
             cur_var_line += f"['{val}']"
@@ -258,9 +261,9 @@ def write_code(exercise: dict):
         if part['info']['type'] == 'number-input':
             numeric_answer = None
             words = exercise['solutions'][part_num].strip().split(' ')
-            if len(words) == 1 and string_is_numeric(exercise['solutions'][part_num].replace(',', '').strip()):
-                numeric_answer = float(exercise['solutions'][part_num].replace(',', '').strip())
-                exercise['solutions'][part_num] = f'{{{{ correct_answers.part{part_num+1}_ans }}}}'
+            if len(words) == 1 and string_is_numeric(exercise['solutions'][part_num].replace(',', '').strip().strip('%')):
+                numeric_answer = float(exercise['solutions'][part_num].replace(',', '').strip().strip('%'))
+                # exercise['solutions'][part_num] = f'{{{{ correct_answers.part{part_num+1}_ans }}}}' # WARNING: THIS PART WAS IN OLD
             if len(list(filter(None, exercise['solutions'][part_num].split('\n')))) == 1 and '\\rightarrow' in exercise['solutions'][part_num]:
                 numeric_answer = 1
                 answer_section: str = exercise['solutions'][part_num].split('\\rightarrow')[-1].strip()
@@ -276,9 +279,12 @@ def write_code(exercise: dict):
                 numeric_answer = float(words[-1].replace(',', '').strip())
                 exercise['solutions'][part_num] = exercise['solutions'][part_num].replace(words[-1], f'{{{{ correct_answers.part{part_num+1}_ans }}}}')
             lines.append(f"# Part {part_num+1} is a {part['info']['type']} question.")
-            end_note = '' if numeric_answer is not None else '# TODO: insert correct answer here'
+            end_note = '' if numeric_answer is not None else f'# TODO: insert correct answer here'
             decimals = count_decimal_places(numeric_answer) if numeric_answer is not None else 2
-            lines.append(f"correct_part{part_num+1}_ans = {numeric_answer or 0}  {end_note}")
+            if "code" in part['info']:
+                lines.append("# GPT generated solution")
+                lines.append(f"{part['info']['code']}")
+            lines.append(f"correct_part{part_num+1}_ans = {numeric_answer or ' '.join(words)}  {end_note}")
             lines.append(f"data2['correct_answers']['part{part_num+1}_ans'] = pbh.roundp(correct_part{part_num+1}_ans, decimals={decimals})")
             lines.append('')
 
@@ -288,11 +294,14 @@ def write_code(exercise: dict):
         # data2["params"]["part1"]["ans1"]["correct"] = False
         # data2["params"]["part1"]["ans1"]["feedback"] = "This is a random number, you probably selected this choice by mistake! Try again please!"
 
-def assign_graph_variables(graph: dict, i: int):
+def assign_graph_variables(graph: dict, i: int, num_graphs: int):
     variables = graph["variables"]
     lines = ['']
     for var in variables:
-        lines.append(f"{var}_{i+1} = {variables[var]}")
+        if num_graphs == 1:
+            lines.append(f"{var} = {variables[var]}")
+        else:
+            lines.append(f"{var}_{i+1} = {variables[var]}")
     lines.append('')
     return lines
 
@@ -304,7 +313,7 @@ def write_graph(exercise: dict):
     graphs = exercise["graphs"]
     axis_str = ', '.join([f'ax{i+1}' for i in range(len(graphs))])
 
-    f'fig, ({axis_str}) = plt.subplots({1}, {len(graphs)}, figsize=(10, 6))' # Create n subplots
+    lines.append(f'fig, ({axis_str}) = plt.subplots({1}, {len(graphs)}, figsize=(10, 6))') # Create n subplots
 
     for i, graph in enumerate(graphs):
         graph_type: str = graph["type"]
@@ -313,16 +322,16 @@ def write_graph(exercise: dict):
         lines.append(f'# {graph_type}')
         ax = f'ax{i+1}'
 
-        lines += assign_graph_variables(graph, i)
-        suffix = f"_{i+1}"
+        lines += assign_graph_variables(graph, i, len(graphs))
+        suffix = f"_{i+1}" if len(graphs) > 1 else ""
         if graph_type == "other":
             lines.append("# graph code here...")
         elif graph_type == "scatter":
             raise Exception("Scatter plots not supported yet")
         elif graph_type == "histogram":
-            lines.append(f"data{suffix} = np.random.uniform(low=min{suffix}, high=max{suffix}, size=sample_size{suffix})")
+            lines.append(f"data{suffix} = np.random.uniform(low=min_val{suffix}, high=max_val{suffix}, size=sample_size{suffix})")
             if "median" in graph["variables"]:
-                lines.append(f"data{suffix} = data{suffix} * (median{suffix} / (max{suffix} - min{suffix})) + min{suffix}")
+                lines.append(f"data{suffix} = data{suffix} * (median{suffix} / (max_val{suffix} - min_val{suffix})) + min_val{suffix}")
             lines.append(f"{ax}.hist(data{suffix}, bins=num_bins{suffix}, edgecolor='black')")
             lines.append(f"{ax}.grid(True)")
         elif graph_type == "bar":
@@ -333,26 +342,36 @@ def write_graph(exercise: dict):
             data = graph["data"]
             if not isinstance(data[0], list):
                 data = [data]
-            lines.append(f"iqr{suffix} = q3_{suffix} - q1_{suffix}")
-            lines.append(f"min{suffix} = max(min{suffix}, q1_{suffix} - 1.5 * iqr{suffix} - iqr{suffix} * 0.05)")
-            lines.append(f"max{suffix} = min(max{suffix}, q3_{suffix} + 1.5 * iqr{suffix} + iqr{suffix} * 0.05)")
+            lines.append(f"iqr{suffix} = q3{suffix} - q1{suffix}")
+
+            if "min_val" not in variables:
+                lines.append(f"min_val{suffix} = q1{suffix} - 1.5 * iqr{suffix} - iqr{suffix} * 0.1")
+            if "max_val" not in variables:
+                lines.append(f"max_val{suffix} = q3{suffix} + 1.5 * iqr{suffix} + iqr{suffix} * 0.1")
 
             lines.append('')
+            is_bxp = False
             for j, box in enumerate(data):
                 # case for box is None
-                if "median" in variables:
-                    if "std" in variables:
-                        lines.append(f"# suggestion, change iqr to control std, calculate std with std=np.std(box_data{i+1})")
-                    create_data = f"box_data_{j+1} = np.random.uniform(low=min{suffix}, high=median{suffix}, size=(sample_size{suffix}-1)//2) + [median] + np.random.uniform(low=median, high=max{suffix}, size=(sample_size{suffix}-1)//2)"
-                    lines.append(create_data)
+                if "median" in variables and "q1" in variables and "q3" in variables and "whislow" in variables and "whishigh" in variables:
+                    lines.append(f"box_data_{j+1} = dict(med=median{suffix}, q1=q1{suffix}, q3=q3{suffix}, whislo=whislow{suffix}, whishi=whishigh{suffix}, fliers=[])") # [min_val{suffix}, q1{suffix}, median{suffix}, q3{suffix}, max_val{suffix}]
+                    is_bxp = True
                 else:
-                    lines.append(f"box_data_{j+1} = np.random.normal(loc=mean{suffix}, scale=std{suffix}, size=sample_size{suffix})")
-            lines.append('')
+                    if "median" in variables:
+                        if "std" in variables:
+                            lines.append(f"# suggestion, change iqr to control std, calculate std with std=np.std(box_data{i+1})")
+                        create_data = f"box_data_{j+1} = np.random.uniform(low=min_val{suffix}, high=median{suffix}, size=(sample_size{suffix}-1)//2) + [median] + np.random.uniform(low=median, high=max_val{suffix}, size=(sample_size{suffix}-1)//2)"
+                        lines.append(create_data)
+                    else:
+                        lines.append(f"box_data_{j+1} = np.random.normal(loc=mean{suffix}, scale=std{suffix}, size=sample_size{suffix})")
+                lines.append('')
 
             data_array = '['+ ', '.join([f"box_data_{j+1}" for j in range(len(data))]) + ']'
             lines.append('')
+            show_means = "mean" in variables
             labels = f', labels={graph["labels"]}' if "labels" in graph and len(graph["labels"]) > 0 else ''
-            lines.append(f"{ax}.boxplot({data_array}{labels}, showmeans=True, meanline=True)")
+            plot_name = "bxp" if is_bxp else "boxplot"
+            lines.append(f"bp{suffix} = {ax}.{plot_name}({data_array}{labels}, showmeans={show_means}, meanline={show_means}, vert={graph['is_vertical']})")
             lines.append('')
             # lines.append('# Annotate the new means on the plot')
             # lines.append('for i, mean in enumerate(new_means):')
@@ -395,9 +414,6 @@ def write_md(exercise):
 
     question_text = '\n'.join([x['question'] for x in exercise['parts']]) + '\n' + exercise['description'] + '\n' + exercise['title'] + '\n' + '\n'.join(exercise['solutions'])
     df['Similarity'] = df.apply(lambda row: text_similarity(row['Learning Outcome'], question_text), axis = 1)
-
-
-    # df.sort_values(by=['Brand'], inplace=True, ascending=False)
 
     min_value = 1
     while len(df.index)>5:
@@ -542,6 +558,8 @@ def display_extras(exercise):
             pass # handled in assets
         elif extra == 'graph':
             lines_to_write.append('<pl-figure file-name="figure 1.png" type="dynamic" width="500px"></pl-figure>')
+    if len(lines_to_write) > 0:
+        lines_to_write.append('')
     return lines_to_write
 
 def write_md_new(exercise):
@@ -578,6 +596,7 @@ def write_md_new(exercise):
         all_imports.add("import matplotlib.pyplot as plt")
         all_imports.add("import io")
         all_imports.add("import numpy as np")
+        all_imports.add("from matplotlib import cbook")
 
     imports_string = "\n        ".join(list(all_imports))
     lines_to_write.append(f"server:\n  imports: |\n        {imports_string}")

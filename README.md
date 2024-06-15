@@ -1,15 +1,8 @@
-# opb-utils
- helpers for creating questions for opb stats
+## OPB utils
 
-- issues_to_questions.py: takes issues from github repo and turns them into questions in the (temporary) /questions directory
-- pl.sh: moves questions in /questions into prairelearn
-- git-pr.sh: pushes questions in /questions to github (different branch + draft PR for each question)
-- git-pr-1.sh: commits + makes a PR for a specified question in /questions to github
+This is my system for creating questions for OPB stats.
 
-To use:
-1. create .env file, and copy .env.example there, and fill in.
-2. Create an empty completed.txt file.
-3. Run `nltk.download('punkt')` and `nltk.download('stopwords')` and something else i've forgotten
+Includes creating issues with `python create_issues.py`, a TUI for creating questions with `python tui.py`, and auto generating questions from openintro-statistics with `python issues_to_questions.py`. Also includes bash scripts for pushing a question from here to `instructor_stats_bank` and creating PRs.
 
-TODOS:
-- when matching supported: change ifs to match matching instead of dropdown
+See [TUI.md](./TUI.md) for more information on the TUI.
+See [AUTO.md](./AUTO.md) for more information on openintro-statistics auto generation.

@@ -8,6 +8,25 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY"),
 )
 
+def ask_number_code(question: str, answer: str | float | int) -> str:
+    chat_completion = client.chat.completions.create(
+        messages=[
+            {
+                "role": "user",
+                "content": f"""I am creating a number-input question. The question is: "{question}"
+                The correct answer is "{answer}". Write me the python code to solve the question. Use variables when possible.
+                Answer with only the python code.""",
+            }
+        ],
+        model="gpt-3.5-turbo",
+    )
+    for choice in chat_completion.choices:
+        print(choice.message.content)
+    res = chat_completion.choices[0].message.content
+    # check that res is a list of strings
+    assert isinstance(res, str)
+    return res
+
 def ask_mc_options(options: list, answer: str, question: str, num_to_generate: int):
     chat_completion = client.chat.completions.create(
         messages=[

@@ -1,0 +1,87 @@
+{
+    "assets": [],
+    "chapter": "2",
+    "question_numbers": [
+        85
+    ],
+    "branch_name": "openstax_C2_Q85",
+    "issues": [
+        "763"
+    ],
+    "title": "Population Age Demographics Boxplot",
+    "description": "The following box plot shows the U.S. population for a certain year.",
+    "extras": [
+        "graph"
+    ],
+    "graphs": [
+        {
+            "variables": {
+                "median": "44",
+                "q1": "17",
+                "q3": "50",
+                "whislow": "0",
+                "whishigh": "105"
+            },
+            "is_vertical": false,
+            "type": "box plot",
+            "data": [
+                null
+            ]
+        }
+    ],
+    "path": "openstax_C2_Q85.md",
+    "parts": [
+        {
+            "solution": "more children; the left whisker shows that 25% of the population are children 17 and younger. The right whisker shows that 25% of the population are adults 50 and older, so adults 65 and over represent less than 25%.",
+            "question": "Are there fewer or more children (age 17 and under) than senior citizens (age 65 and over)? How do you know?",
+            "type": "multiple-choice",
+            "info": {
+                "type": "multiple-choice",
+                "choices": [
+                    {
+                        "value": "\"more children; the left whisker shows that 35% of the population are children 17 and younger, while the right whisker shows that 15% are senior citizens 65 and older.\"",
+                        "correct": false,
+                        "feedback": "\"Try again please!\""
+                    },
+                    {
+                        "value": "\"fewer children; the left whisker shows that 20% of the population are children 17 and younger, while the right whisker shows that 30% are senior citizens 65 and older.\"",
+                        "correct": false,
+                        "feedback": "\"Try again please!\""
+                    },
+                    {
+                        "value": "\"more senior citizens; the left whisker shows that 20% of the population are children 17 and younger, while the right whisker shows that 30% are senior citizens 65 and older.\"",
+                        "correct": false,
+                        "feedback": "\"Try again please!\""
+                    },
+                    {
+                        "value": "\"more children; the left whisker shows that 25% of the population are children 17 and younger. the right whisker shows that 25% of the population are adults 50 and older, so adults 65 and over represent less than 25%.\"",
+                        "correct": true,
+                        "feedback": "\"Correct!\""
+                    }
+                ]
+            }
+        },
+        {
+            "solution": "62.4%",
+            "question": "{{ params. percent_senior }}% are age 65 and over. Approximately what percentage of the population are working age adults (above age 17 to age 65)?",
+            "type": "number-input",
+            "info": {
+                "type": "number-input",
+                "digits": 1,
+                "label": "$p=$",
+                "suffix": "\"%\"",
+                "code": "total_population = 100\npercent_senior = params.percent_senior\npercent_working_age_adults = total_population - percent_senior\npercent_working_age_adults = percent_working_age_adults - (total_population * 0.05) - (total_population * 0.02)\npercent_working_age_adults = round(percent_working_age_adults, 1)\npercent_working_age_adults"
+            }
+        }
+    ],
+    "num_variables": {},
+    "variables": {
+        "percent_senior": "12.6"
+    },
+    "solutions": [
+        "more children; the left whisker shows that 25% of the population are children 17 and younger. The right whisker shows that 25% of the population are adults 50 and older, so adults 65 and over represent less than 25%.",
+        "62.4%"
+    ],
+    "imports": [],
+    "finished": true
+}
