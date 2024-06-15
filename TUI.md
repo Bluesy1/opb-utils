@@ -31,6 +31,7 @@ I input it as:
 1. Pressing `cmd+d` works for me to exit the program.
 
 ### DEBUGGING:
+Committing to Github + creating PRs is done in `git-pr-first.sh`
 If it's not letting you push, and you are certain you want to commit the whole file,
 replace `git push -u origin $BRANCH_NAME` with
 `git push --force-with-lease -u origin $BRANCH_NAME`
