@@ -54,7 +54,7 @@ def md_part_lines(part, i, params=None, solution=None):
 
     return result + ['']
 
-CUSTOM_KEYS=["type", "choices"]
+CUSTOM_KEYS=["type", "choices", "code"]
 def get_pl_customizations(info: dict = {}, index: int = 0):
     type = info['type']
     pl_indent = '    '
