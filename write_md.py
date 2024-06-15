@@ -54,11 +54,11 @@ def md_part_lines(part, i, params=None, solution=None):
 
     return result + ['']
 
-
+CUSTOM_KEYS=["type", "choices"]
 def get_pl_customizations(info: dict = {}, index: int = 0):
     type = info['type']
     pl_indent = '    '
-    info.pop("type")
+
     customizations = {}
     if type == 'multiple-choice':
         customizations = {**customizations, "weight": 1}
@@ -91,9 +91,10 @@ def get_pl_customizations(info: dict = {}, index: int = 0):
     customizations = {**customizations, **info}
     lines = []
     for (key, val) in customizations.items():
+        if key in CUSTOM_KEYS:
+            continue
         lines.append(f'{key}: {val}')
 
-    info['type'] = type
     return ['  pl-customizations:'] + apply_indent(lines=lines, indent=pl_indent)
 
 
@@ -287,6 +288,14 @@ def write_code(exercise: dict):
         # data2["params"]["part1"]["ans1"]["correct"] = False
         # data2["params"]["part1"]["ans1"]["feedback"] = "This is a random number, you probably selected this choice by mistake! Try again please!"
 
+def assign_graph_variables(graph: dict, i: int):
+    variables = graph["variables"]
+    lines = ['']
+    for var in variables:
+        lines.append(f"{var}_{i+1} = {variables[var]}")
+    lines.append('')
+    return lines
+
 def write_graph(exercise: dict):
     indent = '        '
     outer_lines = ['if data["filename"] == "figure 1.png":','']
@@ -294,30 +303,27 @@ def write_graph(exercise: dict):
 
     graphs = exercise["graphs"]
     axis_str = ', '.join([f'ax{i+1}' for i in range(len(graphs))])
+
     f'fig, ({axis_str}) = plt.subplots({1}, {len(graphs)}, figsize=(10, 6))' # Create n subplots
 
     for i, graph in enumerate(graphs):
         graph_type: str = graph["type"]
+        variables = graph["variables"]
         lines.append('')
         lines.append(f'# {graph_type}')
         ax = f'ax{i+1}'
+
+        lines += assign_graph_variables(graph, i)
+        suffix = f"_{i+1}"
         if graph_type == "other":
             lines.append("# graph code here...")
         elif graph_type == "scatter":
             raise Exception("Scatter plots not supported yet")
         elif graph_type == "histogram":
-            num_bins = graph["num_bins"] if "num_bins" in graph else "num_bins"
-            if "sample_size" in graph:
-                lines.append(f"num_samples = {graph['sample_size']}")
-            if "min" in graph:
-                lines.append(f"data_range_min = {graph['min']}")
-            if "max" in graph:
-                lines.append(f"data_range_max = {graph['max']}")
-            lines.append(f"data{i+1} = np.random.uniform(low=data_range_min, high=data_range_max, size=num_samples)")
-            if "median" in graph:
-                lines.append(f"target_median = {graph['median']}")
-                lines.append(f"data{i+1} = data{i+1} * (target_median / (data_range_max - data_range_min)) + data_range_min")
-            lines.append(f"{ax}.hist(data{i+1}, bins={num_bins}, edgecolor='black')")
+            lines.append(f"data{suffix} = np.random.uniform(low=min{suffix}, high=max{suffix}, size=sample_size{suffix})")
+            if "median" in graph["variables"]:
+                lines.append(f"data{suffix} = data{suffix} * (median{suffix} / (max{suffix} - min{suffix})) + min{suffix}")
+            lines.append(f"{ax}.hist(data{suffix}, bins=num_bins{suffix}, edgecolor='black')")
             lines.append(f"{ax}.grid(True)")
         elif graph_type == "bar":
             raise Exception("Bar plots not supported yet")
@@ -325,58 +331,40 @@ def write_graph(exercise: dict):
             raise Exception("Line plots not supported yet")
         elif graph_type == "box plot":
             data = graph["data"]
-            # lines.append("fig, ax = plt.subplots(figsize=(7, 6))")
             if not isinstance(data[0], list):
-                # single box plots
-                # data is a dict
-                lines += [
-                    f"box_plot_data_{i+1} = np.round(np.random.uniform(3.5, 3.8, 100), 1)"
-                    f"# np.round(np.random.normal(100, 10, 200), 1)"
-                    f"{ax}.boxplot(box_plot_data_{i+1}, showmeans=True, meanline=True)"
-                ]
-            else:
-                # multiple box plots
-                lines.append('')
+                data = [data]
+            lines.append(f"iqr{suffix} = q3_{suffix} - q1_{suffix}")
+            lines.append(f"min{suffix} = max(min{suffix}, q1_{suffix} - 1.5 * iqr{suffix} - iqr{suffix} * 0.05)")
+            lines.append(f"max{suffix} = min(max{suffix}, q3_{suffix} + 1.5 * iqr{suffix} + iqr{suffix} * 0.05)")
 
-                if "median" in graph:
-                    if '[' in graph['median'] and ']' in graph['median']:
-                        lines.append(f"new_medians = {graph['median']}")
-                    else:
-                        lines.append(f"new_medians = [{graph['median']} for _ in range({len(data)})]")
+            lines.append('')
+            for j, box in enumerate(data):
+                # case for box is None
+                if "median" in variables:
+                    if "std" in variables:
+                        lines.append(f"# suggestion, change iqr to control std, calculate std with std=np.std(box_data{i+1})")
+                    create_data = f"box_data_{j+1} = np.random.uniform(low=min{suffix}, high=median{suffix}, size=(sample_size{suffix}-1)//2) + [median] + np.random.uniform(low=median, high=max{suffix}, size=(sample_size{suffix}-1)//2)"
+                    lines.append(create_data)
                 else:
-                    if "mean" in graph:
-                        if '[' in graph['mean'] and ']' in graph['mean']:
-                            lines.append(f"new_means = {graph['mean']}")
-                        else:
-                            lines.append(f"new_means = [{graph['mean']} for _ in range({len(data)})]")
-                    else:
-                        lines.append(f"new_means = [np.random.uniform(3.5, 3.8) for _ in range({len(data)})]")
+                    lines.append(f"box_data_{j+1} = np.random.normal(loc=mean{suffix}, scale=std{suffix}, size=sample_size{suffix})")
+            lines.append('')
 
-                lines.append()
-                for i, box in enumerate(data):
-                    # case for box is None
-                    lines.append(f"box_plot_data_{i+1} = np.round(np.random.uniform(3.5, 3.8, 100), 1)")
-                    if "median" in graph:
-                        lines.append(f"box_plot_data_{i+1} = box_plot_data_{i+1} + (new_medians[{i}] - np.median(box_plot_data_{i+1}))")
-                    else:
-                        lines.append(f"box_plot_data_{i+1} = box_plot_data_{i+1} + (new_means[{i}] - np.mean(box_plot_data_{i+1}))")
-
-                data_array = '['+ ', '.join([f"box_plot_data_{i+1}" for i in range(len(data))]) + ']'
-                lines.append('')
-                labels = f', labels={graph["labels"]}' if "labels" in graph and len(graph["labels"]) > 0 else ''
-                lines.append(f"{ax}.boxplot({data_array}{labels}, showmeans=True, meanline=True)")
-                lines.append('')
-                lines.append('# Annotate the new means on the plot')
-                lines.append('for i, mean in enumerate(new_means):')
-                lines.append(f"{TAB}{ax}.text(i + 1, mean, f'{{mean:.2f}}', color='black', fontsize=9, ha='center', va='bottom')")
+            data_array = '['+ ', '.join([f"box_data_{j+1}" for j in range(len(data))]) + ']'
+            lines.append('')
+            labels = f', labels={graph["labels"]}' if "labels" in graph and len(graph["labels"]) > 0 else ''
+            lines.append(f"{ax}.boxplot({data_array}{labels}, showmeans=True, meanline=True)")
+            lines.append('')
+            # lines.append('# Annotate the new means on the plot')
+            # lines.append('for i, mean in enumerate(new_means):')
+            # lines.append(f"{TAB}{ax}.text(i + 1, mean, f'{{mean:.2f}}', color='black', fontsize=9, ha='center', va='bottom')")
         else:
             raise Exception(f"Graph type {graph_type} not supported")
         if "title" in graph:
-            lines.append(f"{ax}.set_title('{graph['title']}')")
-        if "x-label" in graph:
-            lines.append(f"{ax}.set_xlabel('{graph['x-label']}')")
-        if "y-label" in graph:
-            lines.append(f"{ax}.set_ylabel('{graph['y-label']}')")
+            lines.append(f"{ax}.set_title('{variables['title']}')")
+        if "x_label" in variables:
+            lines.append(f"{ax}.set_xlabel('{variables['x_label']}')")
+        if "y_label" in variables:
+            lines.append(f"{ax}.set_ylabel('{variables['y_label']}')")
     lines += ["", "plt.tight_layout()", ""]
     outer_lines += apply_indent(lines, TAB)
     outer_lines += ["buf = io.BytesIO()", 'plt.savefig(buf, format="png")', 'return buf']

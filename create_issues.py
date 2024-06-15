@@ -12,6 +12,7 @@ TEXTBOOK_PATH = os.environ.get("TEXTBOOK_PATH")
 GITHUB_ACCESS_TOKEN = os.environ.get("GITHUB_ACCESS_TOKEN")
 
 WRITE_PATH = './questions'
+TEST_MODE = False
 
 def write_to_github(all_issues, body, preview=True):
     """
@@ -36,11 +37,11 @@ def write_to_github(all_issues, body, preview=True):
             if preview:
                 continue
             print("end")
-            # if "assignee" in issue and issue["assignee"] is not None:
-            #     repo.create_issue(title=issue["issue_title"], body=body, assignee=issue["assignee"])
-            # else:
-            #     repo.create_issue(title=issue["issue_title"], body=body)
-            time.sleep(5)
+            if "assignee" in issue and issue["assignee"] is not None:
+                repo.create_issue(title=issue["issue_title"], body=body, assignee=issue["assignee"])
+            else:
+                repo.create_issue(title=issue["issue_title"], body=body)
+            time.sleep(2)
         except Exception as e:
             print("Q", i)
             print('Error creating issue', issue)
@@ -65,7 +66,7 @@ def create_issues_openstax(start_chapter=1, end_chapter=None):
     body = "This question can be found in the OpenStax textbook. For example, here is a link to one sample chapter: https://openstax.org/books/introductory-statistics-2e/pages/1-practice"
 
     total_questions = sum(openstax_question_counts[(start_chapter-1):(end_chapter-1)])
-    questions_per_person = 10
+    questions_per_person = 0
     print('questions_per_person:', questions_per_person)
 
     print("chaps", chapters)
@@ -81,11 +82,12 @@ def create_issues_openstax(start_chapter=1, end_chapter=None):
             'issue_title': f'openstax_C{chap}_Q{i}',
             "assignee": github_profiles[
                 (q_before+i-1) // (questions_per_person * 2)
-            ] if (q_before+i-1) // (questions_per_person * 2) < len(github_profiles) else None,
+            ] if questions_per_person > 0 and (q_before+i-1) // (questions_per_person * 2) < len(github_profiles) else None,
         } for i in range(1, q_count+1, 2)]
         all_issues += issues
     print('all_issues:', all_issues)
-    write_to_github(all_issues, body)
+    if not TEST_MODE:
+        write_to_github(all_issues, body, preview=TEST_MODE)
 
 if __name__ == "__main__":
     print('hi')
@@ -93,7 +95,7 @@ if __name__ == "__main__":
     # with open('issues.txt', 'w') as f:
     #     f.write('')
 
-    create_issues_openstax(1)
+    create_issues_openstax(8, 9)
 
     # for i, issue in enumerate(all_issues[33:]):
     #     try:

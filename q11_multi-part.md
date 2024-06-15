@@ -4,7 +4,7 @@ topic: Template
 author: Firas Moosvi
 source: original
 template_version: 1.4
-attribution: openintro-stats
+attribution: openstax-stats-2e
 partialCredit: true
 singleVariant: false
 showCorrectAnswer: false
