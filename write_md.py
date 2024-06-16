@@ -1,14 +1,25 @@
+import json
 import os
 import shutil
-from utils import replace_file_line, apply_indent, write_file, apply_params_to_str, string_is_numeric, insert_into_file, count_decimal_places
 import tempfile
-from constants import textbook_chapter_to_name, topics
-from pdf2image import convert_from_path
-import json
-from table import find_all_figures
+
 import pandas as pd
-from similarity import text_similarity
 from dotenv import load_dotenv
+from pdf2image import convert_from_path
+
+from constants import textbook_chapter_to_name, topics
+from similarity import text_similarity
+from table import find_all_figures
+from utils import (
+    apply_indent,
+    apply_params_to_str,
+    count_decimal_places,
+    insert_into_file,
+    replace_file_line,
+    string_is_numeric,
+    write_file,
+)
+
 load_dotenv()
 # question What is the variance of the mean of these $n$ values: $\frac{X_1 + X_2 + \dots + X_n}{n}$?
 TEXTBOOK_PATH = os.environ.get("TEXTBOOK_PATH")
@@ -283,7 +294,7 @@ def write_code(exercise: dict):
             decimals = count_decimal_places(numeric_answer) if numeric_answer is not None else 2
             if "code" in part['info']:
                 lines.append("# GPT generated solution")
-                lines.append(f"{part['info']['code']}")
+                lines.extend(part['info']['code'].splitlines())
             lines.append(f"correct_part{part_num+1}_ans = {numeric_answer or ' '.join(words)}  {end_note}")
             lines.append(f"data2['correct_answers']['part{part_num+1}_ans'] = pbh.roundp(correct_part{part_num+1}_ans, decimals={decimals})")
             lines.append('')
@@ -508,7 +519,7 @@ def write_md(exercise):
 
 def suggested_outcomes(exercise):
     chapter = exercise['chapter']
-    df = pd.read_csv('/Users/christinayang/Documents/GitHub/OPB/learning_outcomes/outputs_csv/LO_stats.csv')
+    df = pd.read_csv('https://raw.githubusercontent.com/open-resources/learning_outcomes/main/outputs_csv/LO_stats.csv')
     df = df.loc[df['Topic'] == topics[chapter]]
 
     question_text = '\n'.join([x['question'] for x in exercise['parts']]) + '\n' + exercise['description'] + '\n' + exercise['title'] + '\n' + '\n'.join(exercise['solutions'])

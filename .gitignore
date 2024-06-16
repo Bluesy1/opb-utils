@@ -8,3 +8,5 @@ w-fix/
 w-done/
 w-pending/
 w-*/
+.venv/
+saved.json
