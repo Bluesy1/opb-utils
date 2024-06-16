@@ -384,8 +384,7 @@ def start_tui():
                     capture_output=True, check=True, text=True,
                 )
                 print(ret.stdout)
-        process_question_pl(full_path, output_path=PL_QUESTION_PATH, dev=True)
-
+        process_question_pl(full_path, output_path=PL_QUESTION_PATH / full_path.parent.name , dev=True)
         print(variants)
     except Exception as e:
         print(e)
@@ -393,7 +392,6 @@ def start_tui():
         print("Wrote to saved.json")
         traceback.print_exc()
         return
-#                 exercises.append({
 
 if __name__ == "__main__":
     start_tui()
