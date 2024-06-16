@@ -227,7 +227,7 @@ def write_code(exercise: dict):
     if "tables" in exercise:
         for (i, table) in enumerate(exercise["tables"]):
             lines.append(f"table{i+1} = {table['matrix']}")
-            lines.append(f"data2['params']['table{i+1}'] = pbh.convert_markdown_table(table{i+1}, width='550px', first_row_is_header={table['first_row_is_header']}, first_col_is_header={table['first_col_is_header']},)")
+            lines.append(f"data2['params']['table{i+1}'] = pbh.create_html_table(table{i+1}, width='550px', first_row_is_header={table['first_row_is_header']}, first_col_is_header={table['first_col_is_header']},)")
 
     lines.append('')
     lines.append('# store the variables in the dictionary "params"')
