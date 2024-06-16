@@ -1,18 +1,25 @@
-import questionary
-from issues_to_questions import generate_yes_no_choices, generate_true_false_choices
-from write_md import write_md_new
-from gpt import ask_mc_options, ask_number_code
+import json
 import os
 import os.path
-from dotenv import load_dotenv
-import re
-import subprocess
+import pathlib
 import random
-import json
+import subprocess
+import traceback
+
+import questionary
+from dotenv import load_dotenv
+from problem_bank_scripts import process_question_pl
+
+from gpt import ask_mc_options, ask_number_code
+from issues_to_questions import generate_true_false_choices, generate_yes_no_choices
+from write_md import write_md_new
+
 load_dotenv()
-TESTING = False
+TESTING = True
 
 GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME")
+PL_QUESTION_PATH = pathlib.Path(os.environ["PL_QUESTION_PATH"])
+
 
 ch1_matching_type = {
     'type': 'matching',
@@ -276,7 +283,6 @@ def start_tui():
                         "data",
                         "mean",
                         "median",
-                        "mean",
                         "std",
                         "num_bins",
                         "min_val",
@@ -358,13 +364,15 @@ def start_tui():
         if not TESTING:
             # subprocess.check_call("./git-pr-first.sh %s %s %s" % (path, str(arg2), arg3), shell=True)
             subprocess.check_call(f'./git-pr-first.sh {branch_name} "{title}" {GITHUB_USERNAME} {" ".join(issues)}', shell=True)
-        subprocess.call(f'./pl-questions.sh', shell=True)
+        # subprocess.call(f'./pl-questions.sh', shell=True)
+        process_question_pl(full_path, output_path=PL_QUESTION_PATH, dev=True)
 
         print(variants)
     except Exception as e:
         print(e)
         write_json(exercise)
         print("Wrote to saved.json")
+        traceback.print_exc()
         return
 #                 exercises.append({
 
