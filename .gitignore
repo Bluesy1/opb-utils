@@ -2,6 +2,7 @@
 questions/
 info/
 __pycache__/**
+*/__pycache__/**
 issues.txt
 test.py
 w-fix/

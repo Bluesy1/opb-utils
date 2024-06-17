@@ -9,7 +9,7 @@ tool for creating question templates for opb stats
 Turn `Testing=True` to prevent pushing to the repo. (located at top of `tui.py`)
 
 ### Instructions:
-1. run `python tui.py`
+1. run `python -m tui` from the directory above this one.
 
 ### How save works:
 After you have filled out tui.py, a saved.json file will be created. This allows you to rerun the previous question without having to re-fill out the questions again. I recommend you save a copy, because it will be overwritten each time you run the program.

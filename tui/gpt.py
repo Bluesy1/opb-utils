@@ -1,7 +1,7 @@
 import os
+
 from openai import OpenAI
-from dotenv import load_dotenv
-load_dotenv()
+
 
 client = OpenAI(
     # This is the default and can be omitted
@@ -42,7 +42,7 @@ def ask_mc_options(options: list, answer: str, question: str, num_to_generate: i
     for choice in chat_completion.choices:
         print(choice.message.content)
     try:
-        res = eval(chat_completion.choices[0].message.content)
+        res = eval(chat_completion.choices[0].message.content)  # pyright: ignore[reportArgumentType]
     except Exception as e:
         print(e)
         res = "\n".split(chat_completion.choices[0].message.content)

@@ -6,31 +6,30 @@ import string
 import tempfile
 
 import pandas as pd
-from dotenv import load_dotenv
 from pdf2image import convert_from_path
 
-from constants import textbook_chapter_to_name, topics
-from similarity import text_similarity
-from table import find_all_figures
-from utils import (
-    apply_indent,
-    apply_params_to_str,
-    count_decimal_places,
-    insert_into_file,
-    replace_file_line,
-    string_is_numeric,
-    write_file,
-)
+from .similarity import text_similarity
+from .utils import apply_indent, apply_params_to_str, count_decimal_places, string_is_numeric
 
-load_dotenv()
-# question What is the variance of the mean of these $n$ values: $\frac{X_1 + X_2 + \dots + X_n}{n}$?
-TEXTBOOK_PATH = os.environ.get("TEXTBOOK_PATH")
+
 # WRITE_PATH = os.environ.get("WRITE_PATH")
 WRITE_PATH = './questions'
 INFO_PATH = './info'
 MY_NAME = os.environ.get("MY_NAME")
 MY_INITIALS = os.environ.get("MY_INITIALS")
 TAB = '  '
+
+TOPICS = {
+    '1': 'Introduction to Data',
+    '2': 'Summarizing Data',
+    '3': 'Probability',
+    '4': 'Distributions of random variables',
+    '5': 'Foundations for inference',
+    '6': 'Inference for categorical data',
+    '7': 'Inference for numerical data',
+    '8': 'Introduction to linear regression',
+    '9': 'Multiple and logistic regression',
+}
 
 
 def md_part_lines(part, i, params=None, solution=None):
@@ -59,15 +58,14 @@ def md_part_lines(part, i, params=None, solution=None):
 
     if solution:
         if params:
-            formated_soln = apply_params_to_str(solution, params)
-            result += ['### pl-answer-panel', '', f'{formated_soln}', '']
+            formatted_soln = apply_params_to_str(solution, params)
+            result += ['### pl-answer-panel', '', f'{formatted_soln}', '']
         else:
             result += ['### pl-answer-panel', '', f'{solution}', '']
 
     return result + ['']
 
 CUSTOM_KEYS = ["type", "choices", "code"]
-
 
 def get_pl_customizations(info: dict, index: int = 0):
     type_ = info["type"]
@@ -140,35 +138,19 @@ def format_type_info(info: dict):
     return apply_indent(list, indent)
 
 
-def move_figure(chapter: str, a: str, exercise_path: str):
-    dir_path = WRITE_PATH + '/' + ''.join(exercise_path.split('.')[:-1])
-
-    fig_dir = '/'.join(a.split('/')[:-1])
-    # print(fig_dir)
-    # if not fig_dir.split:
-    #     fig_dir = a
-    figures_prefix = f'{textbook_chapter_to_name[chapter]}/figures/'
-    if 'figures' in a:
-        figures_prefix = ''
-    figure_dir_path = f"{TEXTBOOK_PATH}/{figures_prefix}{fig_dir}"
-    figure_name = ''
-    # filebase
-    tmp_name = a.split('/')[-1]
-    for figure in os.listdir(figure_dir_path):
-        if figure.lower().startswith(tmp_name.lower()):
-            figure_name = figure
-            break
-    # figure_name = os.listdir(figure_dir_path)
-    figure_no_extension_name, ext = figure_name.split('.')
-    if ext == 'pdf':
+def move_figure(asset: str, exercise_path: str):
+    dir_path = pathlib.Path(WRITE_PATH) / pathlib.Path(exercise_path).stem.lower()
+    figure_no_extension_name, ext = asset.rsplit('.', maxsplit=1)
+    if ext == "pdf":
         images = None
         with tempfile.TemporaryDirectory() as tmp_path:
-            images = convert_from_path(f'{figure_dir_path}/{figure_name}', output_folder=tmp_path, use_cropbox=True)
-            figure_name = f'{figure_no_extension_name}.jpg'
+            images = convert_from_path(asset, output_folder=tmp_path, use_cropbox=True)
+            figure_name = f"{figure_no_extension_name}.jpg"
             if len(images) > 0:
-                images[0].save(f'{dir_path}/{figure_name}', 'JPEG')
+                images[0].save(dir_path / figure_name, "JPEG")
     else:
-            shutil.copyfile(f'{figure_dir_path}/{figure_name}', f'{dir_path}/{figure_name}')
+        figure_name = pathlib.Path(asset).name
+        shutil.copyfile(asset, f"{dir_path}/{figure_name}")
     return figure_name
 
 
@@ -193,6 +175,7 @@ def num_variable_to_line_value(num: float):
             range_value = round(abs(num)/10, count_after_decimal)
         randomized_str = f"round(random.uniform({round(num - range_value, count_after_decimal)}, {round(num + range_value, count_after_decimal)}), {count_after_decimal})"
     return f"{randomized_str}  # {num}"
+
 
 def write_code(exercise: dict):
     indent = '        '
@@ -264,12 +247,6 @@ def write_code(exercise: dict):
         print("solns:")
         print(json.dumps(exercise['solutions'], indent=2))
 
-    for solution in exercise['solutions']:
-
-        figures = find_all_figures(solution)
-        for a in figures:
-            move_figure(exercise['chapter'], a, exercise['path'])
-
     for part_num, part in enumerate(exercise['parts']):
         if part['info']['type'] == 'multiple-choice' or part['info']['type'] == 'dropdown':
             lines.append(f"# Part {part_num+1} is a {part['info']['type']} question.")
@@ -323,6 +300,7 @@ def write_code(exercise: dict):
         # data2["params"]["part1"]["ans1"]["correct"] = False
         # data2["params"]["part1"]["ans1"]["feedback"] = "This is a random number, you probably selected this choice by mistake! Try again please!"
 
+
 def assign_graph_variables(graph: dict, i: int, num_graphs: int):
     variables = graph["variables"]
     lines = ['']
@@ -333,6 +311,7 @@ def assign_graph_variables(graph: dict, i: int, num_graphs: int):
             lines.append(f"{var}_{i+1} = {variables[var]}")
     lines.append('')
     return lines
+
 
 def write_graph(exercise: dict):
     indent = '        '
@@ -418,128 +397,11 @@ def write_graph(exercise: dict):
     outer_lines += ["buf = io.BytesIO()", 'plt.savefig(buf, format="png")', 'return buf']
     return apply_indent(outer_lines, indent)
 
-def write_md(exercise):
-    solutions = exercise['solutions']
-    chapter = exercise['chapter']
-
-    dir_end ='/' + ''.join(exercise['path'].split('.')[:-1])
-    dir_path = WRITE_PATH + dir_end
-    path = dir_path + '/' + exercise['path']
-    title_path = INFO_PATH + dir_end + '/title.txt'
-    if not os.path.exists('questions'):
-        os.mkdir('questions')
-    if not os.path.exists(dir_path):
-        os.mkdir(dir_path)
-    shutil.copyfile('q11_multi-part.md', path)
-
-    replace_file_line(path, 1, f"title: {exercise['title']}")
-    replace_file_line(path, 2, f"topic: {topics[chapter]}")
-    replace_file_line(path, 3, f"author: {MY_NAME}")
-    replace_file_line(path, 21, f"tags:")
-    replace_file_line(path, 22, f"- {MY_INITIALS}")
-
-    df = pd.read_csv('/Users/christinayang/Documents/GitHub/OPB/learning_outcomes/outputs_csv/LO_stats.csv')
-    df = df.loc[df['Topic'] == topics[chapter]]
-
-    question_text = '\n'.join([x['question'] for x in exercise['parts']]) + '\n' + exercise['description'] + '\n' + exercise['title'] + '\n' + '\n'.join(exercise['solutions'])
-    df['Similarity'] = df.apply(lambda row: text_similarity(row['Learning Outcome'], question_text), axis = 1)
-
-    min_value = 1
-    while len(df.index)>5:
-        df = df.loc[df['Similarity'] > min_value]
-        min_value += 0.5
-        # df = df[df.apply(lambda row: text_similarity(row['Learning Outcome'], question_text) >= min_value, axis=1)]
-    # text_similarity()
-    values_to_insert = ''.join([f"- {row['Code']}  # {row['Learning Outcome']}\n" for index, row in df.iterrows()])
-    insert_into_file(path, 11, values_to_insert)
-    for index, row in df.iterrows():
-        print("SIM:", row['Similarity'])
-    # df = df.loc[text_similarity(df['Learning Outcome'], question_text) > 0.2]
-    # print("\nDF HERE:")
-    # print(df.to_string())
-
-    # TODO: write expression
-    lines_to_write = []
-    asset_lines = ["assets:"]
-    asset_to_filename = {}
-    # Do all the moving here
-    for i, a in enumerate(exercise['assets']):
-        if a.endswith('.html'):
-            asset_lines.append(f"- {a}")
-            continue
-        figure_name = move_figure(chapter, a, exercise['path'])
-        asset_to_filename[a] = figure_name
-        asset_lines.append(f"- {figure_name}")
-    lines_to_write += asset_lines
-    lines_to_write.append("server:\n  imports: |\n        import random\n        import pandas as pd\n        import problem_bank_helpers as pbh")
-    lines_to_write.append("  generate: |")
-    code_lines, params_dict = write_code(exercise)
-    lines_to_write += code_lines
-    lines_to_write.append("  prepare: |\n        pass\n  parse: |\n        pass\n  grade: |\n        pass")
-    # lines_to_write += [
-    #     "        data2 = pbh.create_data2()\n        data.update(data2)",
-    #     "  prepare: |\n        pass\n  parse: |\n        pass\n  grade: |\n        pass"
-    # ]
-    question_part_lines = []
-    for (i, e) in enumerate(exercise['parts']):
-        question_lines = [f'part{i+1}:'] + format_type_info(e['info']) + get_pl_customizations(e['info'], i)
-        question_part_lines += question_lines
-    lines_to_write += question_part_lines
-    lines_to_write += ['---', '# {{ params.vars.title }}', '', exercise['description'], '']
-
-    # TODO: ADD ASSETS HERE, how should assets be formatted?, since parts assets + main assets
-    for a in exercise['assets']:
-        filename = asset_to_filename[a] if a in asset_to_filename else a
-        if not filename.endswith('.jpg') and not filename.endswith('.jpeg') and not filename.endswith('.png'):
-            continue
-        img = f'<img src="{filename}" width=400>'
-        lines_to_write.append(img)
-    if len(exercise['assets']) > 0:
-        lines_to_write.append('')
-
-    has_long_text = False
-    if len(exercise['parts']) != len(solutions):
-        print(f"ERROR: PARTS AND SOLUTIONS LENGTHS DON'T MATCH, parts {len(exercise['parts'])}, solutions {len(solutions)}")
-        print("PARTS", len(exercise['parts']), json.dumps([x['question'] for x in exercise['parts']], indent=2))
-        print("SOLUTIONS", len(solutions), json.dumps(solutions, indent=2))
-        # print(json.dumps(exercise, indent=2))
-
-        print("\nPATH", path)
-        print()
-        # raise Exception("PARTS AND SOLUTIONS LENGTHS DON'T MATCH")
-        # join until length matches
-        # if len(exercise['parts']) > len(solutions):
-        #     while len(exercise['parts']) > len(solutions):
-        #         first = exercise['parts'][0]
-        #         exercise['parts'] = exercise['parts'][1:]
-        #         exercise['parts'][0]['question'] = first['question'] + ' ' + exercise['parts'][0]['question']
-        #         solutions.append('')
-
-        if len(solutions) > len(exercise['parts']):
-            while len(solutions) > len(exercise['parts']):
-                solutions[1] = solutions[0] + '\n' + solutions[1]
-                solutions = solutions[1:]
-        else:
-            raise Exception("PARTS AND SOLUTIONS LENGTHS DON'T MATCH")
-    for i, part in enumerate(exercise['parts']):
-        lines_to_write += md_part_lines(part, i=i, params=params_dict, solution=solutions[i])
-        if part['info']['type'] == 'longtext':
-            has_long_text = True
-
-    lines_to_write += ['## Rubric', '', 'This should be hidden from students until after the deadline.', '']
-
-    print("WRITING TO", path)
-    write_file(path, lines_to_write)
-    with open(title_path, 'w') as f:
-        f.write(exercise['title'].strip())
-    if has_long_text:
-        shutil.copyfile('sample.html', f'{dir_path}/sample.html')
-
 
 def suggested_outcomes(exercise):
     chapter = exercise["chapter"]
     df = pd.read_csv("https://raw.githubusercontent.com/open-resources/learning_outcomes/main/outputs_csv/LO_stats.csv")
-    df = df.loc[df["Topic"] == topics[chapter]]
+    df = df.loc[df["Topic"] == TOPICS[chapter]]
 
     question_text = "\n".join([x["question"] for x in exercise["parts"]])
     question_text += f"\n{exercise['description']}\n'{exercise['title']}\n" + "\n".join(exercise["solutions"])
@@ -563,7 +425,7 @@ def display_assets(exercise):
         if asset.endswith(".html"):
             asset_lines1.append(f"- {asset}")
             continue
-        figure_name = move_figure(chapter, asset, exercise["path"])
+        figure_name = move_figure(asset, exercise["path"])
         asset_to_filename[asset] = figure_name
         asset_lines1.append(f"- {figure_name}")
 
@@ -608,7 +470,7 @@ def write_md_new(exercise: dict):
 
     template_items = {
         "title": exercise["title"],
-        "topic": topics[chapter],
+        "topic": TOPICS[chapter],
         "author": MY_NAME,
         "outcomes": suggested_outcomes(exercise),
         "tags": f"- {MY_INITIALS}",

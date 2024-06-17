@@ -12,9 +12,9 @@ import questionary
 from dotenv import load_dotenv
 from problem_bank_scripts import process_question_pl
 
-from gpt import ask_mc_options, ask_number_code
-from issues_to_questions import generate_true_false_choices, generate_yes_no_choices
-from write_md import write_md_new
+from .gpt import ask_mc_options, ask_number_code
+from .generate_questions import generate_true_false_choices, generate_yes_no_choices
+from .write_md import write_md_new
 
 load_dotenv()
 TESTING = False
@@ -86,7 +86,7 @@ def is_int(s: str) -> bool:
         return True
 validate_int = lambda text: True if is_int(text) else "Please enter an integer."
 
-def ask_int(question: str, default="") -> int:
+def ask_int(question: str, default: int | str ="") -> int:
     return int(questionary.text(question, validate=validate_int, default=str(default)).ask())
 
 question_types = {
@@ -115,7 +115,7 @@ question_types = {
     },
 }
 
-def split_comma(text: str) -> list:
+def split_comma(text: str) -> list[str]:
     return [x.strip() for x in text.split(",")]
 
 def other_asks(part: dict, solution: str):
@@ -152,7 +152,7 @@ def other_asks(part: dict, solution: str):
             info = {**info, **ch1_matching_type}
     part["info"] = info
 
-def extract_variables(text: str, variables: dict) -> list:
+def extract_variables(text: str, variables: dict) -> str:
     res = ""
     open_i = None
     for i in range(len(text)):
@@ -194,7 +194,7 @@ def ask_if_not_exists(exercise: dict, key: str, question: str, variables: dict, 
         write_json(exercise)
     return exercise[key]
 
-def set_default(exercise: dict, key: str, value: str):
+def set_default(exercise: dict, key: str, value: str | list):
     if key not in exercise:
         exercise[key] = value
         write_json(exercise)
@@ -257,7 +257,7 @@ def start_tui():
             exercise["graphs"] = [] if "graphs" not in exercise else exercise["graphs"]
             graphs_done = len(exercise["graphs"])
             for i in range(graphs_done, num_graphs):
-                graph = {
+                graph: dict = {
                     "variables": {},
                 }
                 graph["type"] = questionary.select(
@@ -397,6 +397,3 @@ def start_tui():
             print(e.stdout)
             print(e.stderr)
         return
-
-if __name__ == "__main__":
-    start_tui()
