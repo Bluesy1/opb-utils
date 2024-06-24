@@ -1,9 +1,10 @@
 import numpy as np
 from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
+from nltk.tokenize import word_tokenize
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
 
 def text_similarity(text1, text2):
     # print(f'Comparing {type(text1)} and {type(text2)}')
@@ -16,7 +17,7 @@ def text_similarity(text1, text2):
     tokens2 = [lemmatizer.lemmatize(token) for token in tokens2]
 
     # Remove stopwords
-    stop_words = stopwords.words('english')
+    stop_words = stopwords.words("english")
     tokens1 = [token for token in tokens1 if token not in stop_words]
     tokens2 = [token for token in tokens2 if token not in stop_words]
 

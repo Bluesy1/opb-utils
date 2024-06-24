@@ -15,59 +15,54 @@ from .utils import apply_indent, apply_params_to_str, count_decimal_places, stri
 WRITE_PATH = os.environ.get("WRITE_PATH") or "./questions"
 MY_NAME = os.environ.get("MY_NAME")
 MY_INITIALS = os.environ.get("MY_INITIALS")
-TAB = '  '
+TAB = " " * 2
 
 TOPICS = {
-    '1': 'Introduction to Data',
-    '2': 'Summarizing Data',
-    '3': 'Probability',
-    '4': 'Distributions of random variables',
-    '5': 'Foundations for inference',
-    '6': 'Inference for categorical data',
-    '7': 'Inference for numerical data',
-    '8': 'Introduction to linear regression',
-    '9': 'Multiple and logistic regression',
+    "1": "Introduction to Data",
+    "2": "Summarizing Data",
+    "3": "Probability",
+    "4": "Distributions of random variables",
+    "5": "Foundations for inference",
+    "6": "Inference for categorical data",
+    "7": "Inference for numerical data",
+    "8": "Introduction to linear regression",
+    "9": "Multiple and logistic regression",
 }
 
 
 def md_part_lines(part, i, params=None, solution=None):
-    q_type = part['info']['type']
-    answer_section = ''
-    if q_type == 'number-input':
-        answer_section ='Please enter a numeric value in.\n'
-    elif q_type == 'multiple-choice' or q_type == 'dropdown':
-        choices = part['info']['choices']
-        answer_section = '\n'.join([f'- {{{{ params.part{i+1}.ans{j+1}.value }}}}' for j in range(len(choices))])
-    elif q_type == 'file-upload':
-        answer_section ='File upload box will be shown here.\n'
+    q_type = part["info"]["type"]
+    answer_section = ""
+    if q_type == "number-input":
+        answer_section = "Please enter a numeric value in.\n"
+    elif q_type == "multiple-choice" or q_type == "dropdown":
+        choices = part["info"]["choices"]
+        answer_section = "\n".join([f"- {{{{ params.part{i+1}.ans{j+1}.value }}}}" for j in range(len(choices))])
+    elif q_type == "file-upload":
+        answer_section = "File upload box will be shown here.\n"
     # answer_section2 = '### pl-answer-panel\n\nEverything here will get inserted directly into an pl-answer-panel element at the end of the `question.html`.\nPlease remove this section if it is not application for this question.'
     # if part['type'] == 'multiple-choice':
 
-    result = [
-        f'## Part {i+1}', '',
-        part['question'], '',
-    ]
+    result = [f"## Part {i+1}", "", part["question"], ""]
 
-    result += [
-        '### Answer Section\n',
-        answer_section, '',
-        # answer_section2,
-        ]
+    result += ["### Answer Section\n", answer_section, ""]
 
     if solution:
         if params:
             formatted_soln = apply_params_to_str(solution, params)
-            result += ['### pl-answer-panel', '', f'{formatted_soln}', '']
+            result += ["### pl-answer-panel", "", f"{formatted_soln}", ""]
         else:
-            result += ['### pl-answer-panel', '', f'{solution}', '']
+            result += ["### pl-answer-panel", "", f"{solution}", ""]
 
-    return result + ['']
+    return [*result, ""]
+
 
 CUSTOM_KEYS = ["type", "choices", "code"]
 
+
 def get_pl_customizations(info: dict, index: int = 0):
     type_ = info["type"]
-    pl_indent = "    "
+    pl_indent = " " * 4
 
     customizations = {}
     if type_ == "multiple-choice":
@@ -110,35 +105,31 @@ def get_pl_customizations(info: dict, index: int = 0):
             "source-file-name": '"sample.html"',
         }
     elif type_ == "file-upload":
-        customizations |= {
-            "file-names": '"file.png, file.jpg, file.pdf, filename space.png"'
-        }
+        customizations |= {"file-names": '"file.png, file.jpg, file.pdf, filename space.png"'}
     elif type_ == "matching":
         customizations |= {"weight": 1, "blank": "true"}
     customizations |= info
-    lines = [
-        f"{key}: {val}" for key, val in customizations.items() if key not in CUSTOM_KEYS
-    ]
+    lines = [f"{key}: {val}" for key, val in customizations.items() if key not in CUSTOM_KEYS]
 
-    return ["  pl-customizations:"] + apply_indent(lines=lines, indent=pl_indent)
+    return ["  pl-customizations:", *apply_indent(lines=lines, indent=pl_indent)]
 
 
 def format_type_info(info: dict):
-    indent = '  '
-    info_type = info['type']
+    indent = TAB
+    info_type = info["type"]
     list = [f'type: {info["type"]}']
-    if info_type == 'longtext':
-        list.append('gradingMethod: Manual')
-    if info_type == 'number-input' and 'sigfigs' in info and info['sigfigs'] == 'integer':
-        list.append('label: $p=$')
-    if info_type == 'matching':
-        list.append('showCorrectAnswer: true')
+    if info_type == "longtext":
+        list.append("gradingMethod: Manual")
+    if info_type == "number-input" and "sigfigs" in info and info["sigfigs"] == "integer":
+        list.append("label: $p=$")
+    if info_type == "matching":
+        list.append("showCorrectAnswer: true")
     return apply_indent(list, indent)
 
 
 def move_figure(asset: str, exercise_path: str):
     dir_path = pathlib.Path(WRITE_PATH) / pathlib.Path(exercise_path).stem.lower()
-    figure_no_extension_name, ext = asset.rsplit('.', maxsplit=1)
+    figure_no_extension_name, ext = asset.rsplit(".", maxsplit=1)
     if ext == "pdf":
         images = None
         with tempfile.TemporaryDirectory() as tmp_path:
@@ -153,24 +144,24 @@ def move_figure(asset: str, exercise_path: str):
 
 
 def num_variable_to_line_value(num: float):
-    randomized_str = ''
+    randomized_str = ""
     if num.is_integer():
         if abs(num) > 15:
-            range_value = abs(num)//10
+            range_value = abs(num) // 10
             add = 0
         else:
             range_value = abs(num)
-            add = 2 if num >=3 else 0
+            add = 2 if num >= 3 else 0
         randomized_str = f"random.randint({int(num - range_value + add)}, {int(num + range_value)})"
         num = int(num)
         if 1900 < num < 2090:
             randomized_str = num
     else:
         count_after_decimal = count_decimal_places(num)
-        if abs(num) <= 0.5:
-            range_value = round(abs(num)*2, count_after_decimal)
+        if (num := abs(num)) <= 0.5:
+            range_value = round(num * 2, count_after_decimal)
         else:
-            range_value = round(abs(num)/10, count_after_decimal)
+            range_value = round(num / 10, count_after_decimal)
         randomized_str = f"round(random.uniform({round(num - range_value, count_after_decimal)}, {round(num + range_value, count_after_decimal)}), {count_after_decimal})"
     return f"{randomized_str}  # {num}"
 
@@ -284,7 +275,7 @@ def write_code(exercise: dict):
                 answer_section: str = exercise["solutions"][part_num].split("\\rightarrow")[-1].strip()
                 while not answer_section[-1].isdigit():
                     answer_section = answer_section[:-1]
-                while not answer_section[0].isdigit() and not answer_section[0] == "-":
+                while not answer_section[0].isdigit() and answer_section[0] != "-":
                     answer_section = answer_section[1:]
                 numeric_answer = float(answer_section.strip())
                 split = exercise["solutions"][part_num].split("\\rightarrow")
@@ -320,32 +311,32 @@ def write_code(exercise: dict):
 
 def assign_graph_variables(graph: dict, i: int, num_graphs: int):
     variables = graph["variables"]
-    lines = ['']
+    lines = [""]
     for var in variables:
         if num_graphs == 1:
             lines.append(f"{var} = {variables[var]}")
         else:
             lines.append(f"{var}_{i+1} = {variables[var]}")
-    lines.append('')
+    lines.append("")
     return lines
 
 
 def write_graph(exercise: dict):
-    indent = '        '
-    outer_lines = ['if data["filename"] == "figure 1.png":','']
+    indent = " " * 8
+    outer_lines = ['if data["filename"] == "figure 1.png":', ""]
     lines = []
 
     graphs = exercise["graphs"]
-    axis_str = ', '.join([f'ax{i+1}' for i in range(len(graphs))])
+    axis_str = ", ".join([f"ax{i+1}" for i in range(len(graphs))])
 
-    lines.append(f'fig, ({axis_str}) = plt.subplots({1}, {len(graphs)}, figsize=(10, 6))') # Create n subplots
+    lines.append(f"fig, ({axis_str}) = plt.subplots({1}, {len(graphs)}, figsize=(10, 6))")  # Create n subplots
 
     for i, graph in enumerate(graphs):
         graph_type: str = graph["type"]
         variables = graph["variables"]
-        lines.append('')
-        lines.append(f'# {graph_type}')
-        ax = f'ax{i+1}'
+        lines.append("")
+        lines.append(f"# {graph_type}")
+        ax = f"ax{i+1}"
 
         lines += assign_graph_variables(graph, i, len(graphs))
         suffix = f"_{i+1}" if len(graphs) > 1 else ""
@@ -354,9 +345,13 @@ def write_graph(exercise: dict):
         elif graph_type == "scatter":
             raise Exception("Scatter plots not supported yet")
         elif graph_type == "histogram":
-            lines.append(f"data{suffix} = np.random.uniform(low=min_val{suffix}, high=max_val{suffix}, size=sample_size{suffix})")
+            lines.append(
+                f"data{suffix} = np.random.uniform(low=min_val{suffix}, high=max_val{suffix}, size=sample_size{suffix})"
+            )
             if "median" in graph["variables"]:
-                lines.append(f"data{suffix} = data{suffix} * (median{suffix} / (max_val{suffix} - min_val{suffix})) + min_val{suffix}")
+                lines.append(
+                    f"data{suffix} = data{suffix} * (median{suffix} / (max_val{suffix} - min_val{suffix})) + min_val{suffix}"
+                )
             lines.append(f"{ax}.hist(data{suffix}, bins=num_bins{suffix}, edgecolor='black')")
             lines.append(f"{ax}.grid(True)")
         elif graph_type == "bar":
@@ -374,30 +369,44 @@ def write_graph(exercise: dict):
             if "max_val" not in variables:
                 lines.append(f"max_val{suffix} = q3{suffix} + 1.5 * iqr{suffix} + iqr{suffix} * 0.1")
 
-            lines.append('')
+            lines.append("")
             is_bxp = False
             for j, box in enumerate(data):
                 # case for box is None
-                if "median" in variables and "q1" in variables and "q3" in variables and "whislow" in variables and "whishigh" in variables:
-                    lines.append(f"box_data_{j+1} = dict(med=median{suffix}, q1=q1{suffix}, q3=q3{suffix}, whislo=whislow{suffix}, whishi=whishigh{suffix}, fliers=[])") # [min_val{suffix}, q1{suffix}, median{suffix}, q3{suffix}, max_val{suffix}]
+                if (
+                    "median" in variables
+                    and "q1" in variables
+                    and "q3" in variables
+                    and "whislow" in variables
+                    and "whishigh" in variables
+                ):
+                    lines.append(
+                        f"box_data_{j+1} = dict(med=median{suffix}, q1=q1{suffix}, q3=q3{suffix}, whislo=whislow{suffix}, whishi=whishigh{suffix}, fliers=[])"
+                    )  # [min_val{suffix}, q1{suffix}, median{suffix}, q3{suffix}, max_val{suffix}]
                     is_bxp = True
                 else:
                     if "median" in variables:
                         if "std" in variables:
-                            lines.append(f"# suggestion, change iqr to control std, calculate std with std=np.std(box_data{i+1})")
+                            lines.append(
+                                f"# suggestion, change iqr to control std, calculate std with std=np.std(box_data{i+1})"
+                            )
                         create_data = f"box_data_{j+1} = np.random.uniform(low=min_val{suffix}, high=median{suffix}, size=(sample_size{suffix}-1)//2) + [median] + np.random.uniform(low=median, high=max_val{suffix}, size=(sample_size{suffix}-1)//2)"
                         lines.append(create_data)
                     else:
-                        lines.append(f"box_data_{j+1} = np.random.normal(loc=mean{suffix}, scale=std{suffix}, size=sample_size{suffix})")
-                lines.append('')
+                        lines.append(
+                            f"box_data_{j+1} = np.random.normal(loc=mean{suffix}, scale=std{suffix}, size=sample_size{suffix})"
+                        )
+                lines.append("")
 
-            data_array = '['+ ', '.join([f"box_data_{j+1}" for j in range(len(data))]) + ']'
-            lines.append('')
+            data_array = "[" + ", ".join([f"box_data_{j+1}" for j in range(len(data))]) + "]"
+            lines.append("")
             show_means = "mean" in variables
-            labels = f', labels={graph["labels"]}' if "labels" in graph and len(graph["labels"]) > 0 else ''
+            labels = f', labels={graph["labels"]}' if "labels" in graph and len(graph["labels"]) > 0 else ""
             plot_name = "bxp" if is_bxp else "boxplot"
-            lines.append(f"bp{suffix} = {ax}.{plot_name}({data_array}{labels}, showmeans={show_means}, meanline={show_means}, vert={graph['is_vertical']})")
-            lines.append('')
+            lines.append(
+                f"bp{suffix} = {ax}.{plot_name}({data_array}{labels}, showmeans={show_means}, meanline={show_means}, vert={graph['is_vertical']})"
+            )
+            lines.append("")
             # lines.append('# Annotate the new means on the plot')
             # lines.append('for i, mean in enumerate(new_means):')
             # lines.append(f"{TAB}{ax}.text(i + 1, mean, f'{{mean:.2f}}', color='black', fontsize=9, ha='center', va='bottom')")
@@ -411,7 +420,7 @@ def write_graph(exercise: dict):
             lines.append(f"{ax}.set_ylabel('{variables['y_label']}')")
     lines += ["", "plt.tight_layout()", ""]
     outer_lines += apply_indent(lines, TAB)
-    outer_lines += ["buf = io.BytesIO()", 'plt.savefig(buf, format="png")', 'return buf']
+    outer_lines += ["buf = io.BytesIO()", 'plt.savefig(buf, format="png")', "return buf"]
     return apply_indent(outer_lines, indent)
 
 
@@ -422,11 +431,11 @@ def suggested_outcomes(exercise):
 
     question_text = "\n".join([x["question"] for x in exercise["parts"]])
     question_text += f"\n{exercise['description']}\n'{exercise['title']}\n" + "\n".join(exercise["solutions"])
-    df["Similarity"] = df.apply(lambda row: text_similarity(row['Learning Outcome'], question_text), axis = 1)
+    df["Similarity"] = df.apply(lambda row: text_similarity(row["Learning Outcome"], question_text), axis=1)
 
     min_value = 1
-    while len(df.index)>5:
-        df = df.loc[df['Similarity'] > min_value]
+    while len(df.index) > 5:
+        df = df.loc[df["Similarity"] > min_value]
         min_value += 0.5
 
     values_to_insert = "".join([f"- {row['Code']}  # {row['Learning Outcome']}\n" for _, row in df.iterrows()])
@@ -434,7 +443,6 @@ def suggested_outcomes(exercise):
 
 
 def display_assets(exercise):
-    chapter = exercise["chapter"]
     asset_lines1 = []
     asset_to_filename = {}
     # Do all the moving here
@@ -448,7 +456,7 @@ def display_assets(exercise):
 
     asset_lines2 = []
     for asset in exercise["assets"]:
-        filename = asset_to_filename[asset] if asset in asset_to_filename else asset
+        filename = asset_to_filename.get(asset, asset)
         if filename.rsplit(".", maxsplit=1)[-1] in {"jpg", "jpeg", "png"}:
             asset_lines2.append(f'<img src="{filename}" width=400>')
 
@@ -468,9 +476,7 @@ def display_extras(exercise):
         elif extra == "image":
             pass  # handled in assets
         elif extra == "graph":
-            lines_to_write.append(
-                '<pl-figure file-name="figure 1.png" type="dynamic" width="500px"></pl-figure>'
-            )
+            lines_to_write.append('<pl-figure file-name="figure 1.png" type="dynamic" width="500px"></pl-figure>')
     if len(lines_to_write) > 0:
         lines_to_write.append("")
     return lines_to_write
@@ -485,16 +491,18 @@ def write_md_new(exercise: dict):
     path = dir_path / exercise["path"]
     dir_path.mkdir(parents=True, exist_ok=True)
 
+    DEFAULT_CODE = " " * 8 + "pass"
+
     template_items = {
         "title": exercise["title"],
         "topic": TOPICS[chapter],
         "author": MY_NAME,
         "outcomes": suggested_outcomes(exercise),
         "tags": f"- {MY_INITIALS}",
-        "file": "        pass",
-        "prepare": "        pass",
-        "parse": "        pass",
-        "grade": "        pass",
+        "file": DEFAULT_CODE,
+        "prepare": DEFAULT_CODE,
+        "parse": DEFAULT_CODE,
+        "grade": DEFAULT_CODE,
     }
 
     asset_lines1, asset_lines2 = display_assets(exercise)
@@ -522,11 +530,7 @@ def write_md_new(exercise: dict):
 
     question_part_lines = []
     for i, part in enumerate(exercise["parts"]):
-        question_lines = (
-            [f"part{i+1}:"]
-            + format_type_info(part["info"])
-            + get_pl_customizations(part["info"], i)
-        )
+        question_lines = [f"part{i + 1}:", *format_type_info(part["info"]), *get_pl_customizations(part["info"], i)]
         question_part_lines += question_lines
     template_items["file"] = "\n".join(question_part_lines)
 
@@ -560,17 +564,13 @@ def write_md_new(exercise: dict):
         else:
             raise Exception("PARTS AND SOLUTIONS LENGTHS DON'T MATCH")
     for i, part in enumerate(exercise["parts"]):
-        question_body += md_part_lines(
-            part, i=i, params=params_dict, solution=solutions[i]
-        )
+        question_body += md_part_lines(part, i=i, params=params_dict, solution=solutions[i])
         if part["info"]["type"] == "longtext":
             has_long_text = True
 
     template_items["question"] = "\n".join(question_body)
 
-    template = string.Template(
-        pathlib.Path(__file__).parent.joinpath("question.md.template").read_text()
-    )
+    template = string.Template(pathlib.Path(__file__).parent.joinpath("question.md.template").read_text())
     filled = template.safe_substitute(template_items)
 
     print("WRITING TO", path)

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from .tui import run_tui
 
+
 REQUIRED_ENV_VARS = ["GITHUB_USERNAME", "WRITE_PATH", "PL_QUESTION_PATH", "MY_NAME", "MY_INITIALS"]
 _REQ_VARS_TEXT = ", ".join(f"{var!r}" for var in REQUIRED_ENV_VARS[:-1]) + f", and {REQUIRED_ENV_VARS[-1]!r}"
 

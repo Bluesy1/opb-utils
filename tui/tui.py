@@ -8,7 +8,6 @@ import subprocess
 import traceback
 
 import questionary
-
 from problem_bank_scripts import process_question_pl
 
 from .generate_questions import generate_true_false_choices, generate_yes_no_choices
@@ -16,25 +15,27 @@ from .write_md import write_md_new
 
 
 ch1_matching_type = {
-    'type': 'matching',
-    'options': [
+    "type": "matching",
+    "options": [
         '"Not a variable in the study"',
         '"Numerical and discrete variable"',
         '"Numerical and continuous variable"',
         '"Categorical"',
         # 'option4': 'Categorical and not ordinal variable',
     ],
-    'statements': [
-        {'value': '"Statement 1"', 'matches': 'Not a variable in the study' },
-        {'value': '"Statement 2"', 'matches': 'Numerical and discrete variable' },
-        {'value': '"Statement 3"', 'matches': 'Numerical and continuous variable' },
-        {'value': '"Statement 4"', 'matches': 'Categorical' },
+    "statements": [
+        {"value": '"Statement 1"', "matches": "Not a variable in the study"},
+        {"value": '"Statement 2"', "matches": "Numerical and discrete variable"},
+        {"value": '"Statement 3"', "matches": "Numerical and continuous variable"},
+        {"value": '"Statement 4"', "matches": "Categorical"},
     ],
 }
 
+
 def write_json(data: dict, filename="saved.json"):
-    with open(filename, 'w', encoding='utf-8') as f:
+    with open(filename, "w") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
 
 def read_json(filename="saved.json"):
     with open(filename) as f:
@@ -86,31 +87,19 @@ def ask_int(question: str, default: int | str = "") -> int:
     return int(questionary.text(question, validate=validate_int, default=str(default)).ask())
 
 
-question_types = {
-    'multiple-choice': {
-    },
-    'number-input': {
-    },
-    'longtext': {
-    },
-    'dropdown': {
-    },
-    'checkbox': {
-    },
-    'matrix': {
-    },
-    'matching': {
-    },
-    'true-false': {
-        "type": "multiple-choice",
-    },
-    'yes-no': {
-        "type": "multiple-choice",
-        'choices': generate_yes_no_choices(),
-    },
-    'file-upload': {
-    },
+QUESTION_TYPES = {
+    "multiple-choice": {},
+    "number-input": {},
+    "longtext": {},
+    "dropdown": {},
+    "checkbox": {},
+    "matrix": {},
+    "matching": {},
+    "true-false": {"type": "multiple-choice"},
+    "yes-no": {"type": "multiple-choice", "choices": generate_yes_no_choices()},
+    "file-upload": {},
 }
+
 
 def split_comma(text: str) -> list[str]:
     return [x.strip() for x in text.split(",")]
@@ -119,7 +108,7 @@ def split_comma(text: str) -> list[str]:
 def other_asks(part: dict, solution: str, use_gpt: bool):
     key = part["type"]
     question = part["question"]
-    info = question_types[key]
+    info = QUESTION_TYPES[key]
     if "type" not in info:
         info["type"] = key
     match key:
@@ -162,10 +151,10 @@ def extract_variables(text: str, variables: dict) -> str:
     for i in range(len(text)):
         if text[i] == "{":
             open_i = i
-        if open_i is None: # has to be in the middle
+        if open_i is None:  # has to be in the middle
             res += text[i]
         if text[i] == "}" and open_i is not None:
-            var = text[open_i+1:i]
+            var = text[open_i+1:i]  # fmt: skip
             name = ""
             value = None
             split = var.split(":")
@@ -180,6 +169,7 @@ def extract_variables(text: str, variables: dict) -> str:
         raise ValueError("Unmatched {")
     return res.strip()
 
+
 def question_type_from_solution(solution: str) -> str | None:
     if solution.lower() in ["true", "false"]:
         return "true-false"
@@ -187,9 +177,8 @@ def question_type_from_solution(solution: str) -> str | None:
         return "yes-no"
     return None
 
-def ask_if_not_exists(exercise: dict, key: str, question: str, variables: dict, default="", parser=None):
-    if parser is None:
-        parser = lambda x: x
+
+def ask_if_not_exists(exercise: dict, key: str, question: str, variables: dict, default="", parser=lambda x: x):
     if key not in exercise:
         value = parser(questionary.text(question, default=default).ask())
         if isinstance(value, str):
@@ -197,6 +186,7 @@ def ask_if_not_exists(exercise: dict, key: str, question: str, variables: dict, 
         exercise[key] = value
         write_json(exercise)
     return exercise[key]
+
 
 def set_default(exercise: dict, key: str, value: str | list):
     if key not in exercise:
@@ -216,23 +206,35 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
         set_default(exercise, "assets", [])
         chapter = ask_if_not_exists(exercise, key="chapter", question="Chapter", variables=variables)
 
-        question_numbers = ask_if_not_exists(exercise, key="question_numbers", question="Question numbers (comma separated)", variables=variables,
-                                            parser=lambda x : [int(s) for s in split_comma(x)])
+        question_numbers = ask_if_not_exists(
+            exercise,
+            key="question_numbers",
+            question="Question numbers (comma separated)",
+            variables=variables,
+            parser=lambda x: [int(s) for s in split_comma(x)],
+        )
         branch_name = f"openstax_C{chapter}_Q{'_Q'.join([str(x) for x in question_numbers])}"
         exercise["branch_name"] = branch_name
         exercise["path"] = f"{branch_name}.md"
-        issues = ask_if_not_exists(exercise, key="issues", question="What issues does this resolve (comma separated, numbers only)", variables=variables, parser=split_comma)
+        issues = ask_if_not_exists(
+            exercise,
+            key="issues",
+            question="What issues does this resolve (comma separated, numbers only)",
+            variables=variables,
+            parser=split_comma,
+        )
         title = ask_if_not_exists(exercise, key="title", question="Title", variables=variables)
         desc = ask_if_not_exists(exercise, key="description", question="Description", variables=variables)
 
         if "extras" not in exercise:
             exercise["extras"] = questionary.checkbox(
-                'Select extra',
+                "Select extra",
                 choices=[
                     "table",
                     "image",
                     "graph",
-                ]).ask()
+                ],
+            ).ask()
 
         if "image" in exercise["extras"]:
             exercise["assets"] += split_comma(questionary.text("Image paths (comma separated)").ask())
@@ -240,9 +242,7 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
             num_tables = ask_int("How many tables", default=1)
             tables = []
             for i in range(num_tables):
-                table = {
-                    "matrix": []
-                }
+                table = {"matrix": []}
                 table_str: str = questionary.text("Paste in table").ask()
                 table["first_row_is_header"] = questionary.confirm("Is the first row a header?").ask()
                 table["first_col_is_header"] = questionary.confirm("Is the first column a header?").ask()
@@ -259,7 +259,7 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
             exercise["tables"] = tables
         if "graph" in exercise["extras"]:
             num_graphs = ask_int("How many graphs", default=1 if "graphs" not in exercise else len(exercise["graphs"]))
-            exercise["graphs"] = [] if "graphs" not in exercise else exercise["graphs"]
+            exercise["graphs"] = exercise.get("graphs", [])
             graphs_done = len(exercise["graphs"])
             for i in range(graphs_done, num_graphs):
                 graph: dict = {
@@ -268,7 +268,7 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
                 graph["type"] = questionary.select(
                     f"Graph {i+1} type",
                     choices=["bar", "line", "scatter", "box plot", "histogram", "other"],
-                    default="box plot"
+                    default="box plot",
                 ).ask()
                 if graph["type"] == "box plot":
                     is_vertical = questionary.confirm("Is the box plot vertical?").ask()
@@ -283,7 +283,7 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
                     "histogram": "num_bins",
                 }
                 known_info = questionary.checkbox(
-                    'Select known/controlled params',
+                    "Select known/controlled params",
                     choices=[
                         "title",
                         "x_label",
@@ -300,7 +300,9 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
                         "whislow",
                         "whishigh",
                         "sample_size",
-                    ], default=default_graph_dict[graph["type"]] if graph["type"] in default_graph_dict else None).ask()
+                    ],
+                    default=default_graph_dict.get(graph["type"], None),
+                ).ask()
                 if "median" in known_info and "mean" in known_info:
                     print("Cannot have both mean and median. Only median will be applied.")
                 for op in known_info:
@@ -312,7 +314,7 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
                 write_json(exercise)
 
         num_parts = ask_int("Number of parts", default=len(exercise["parts"]) if "parts" in exercise else "")
-        num_variants = 1 # ask_int("Number of variants with this description+#parts", default=1)
+        num_variants = 1  # ask_int("Number of variants with this description+#parts", default=1)
         variants = []
         print("num_parts", num_parts)
         #     {
@@ -324,12 +326,9 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
         #         "options": options_sampling_2
         #     }
 
-        for (i, variant) in enumerate(range(num_variants)):
+        for i, variant in enumerate(range(num_variants)):
             print(f"{title} v{i+1}")
-            variant = {
-                "desc": desc,
-                "parts": set_default(exercise, "parts", [])
-            }
+            variant = {"desc": desc, "parts": set_default(exercise, "parts", [])}
             solutions = [part["solution"] for part in variant["parts"]]
             # solutions = [] if "solutions" not in exercise else exercise["solutions"]
             print("solutions", solutions)
@@ -341,14 +340,16 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
             for p in range(parts_start_at, num_parts):
                 part = {}
                 part["solution"] = extract_variables(solutions[p], variables=variables)
-                part["question"] = extract_variables(questionary.text(f"Question text for v{i+1} - pt.{p+1}").ask(), variables=variables)
+                part["question"] = extract_variables(
+                    questionary.text(f"Question text for v{i+1} - pt.{p+1}").ask(), variables=variables
+                )
 
                 part["type"] = questionary.select(
                     f"pt.{p+1} question type?",
-                    choices=list(question_types.keys()),
-                    default=question_type_from_solution(part["solution"])
-                    ).ask()  # returns value of selection
-                other_asks(part, part["solution"])
+                    choices=list(QUESTION_TYPES.keys()),
+                    default=question_type_from_solution(part["solution"]),
+                ).ask()  # returns value of selection
+                other_asks(part, part["solution"], use_gpt)
                 variant["parts"].append(part)
 
             variants.append(variant)

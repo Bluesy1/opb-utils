@@ -1,3 +1,5 @@
+import ast
+
 from openai import OpenAI
 
 
@@ -39,7 +41,7 @@ def ask_mc_options(options: list, answer: str, question: str, num_to_generate: i
     for choice in chat_completion.choices:
         print(choice.message.content)
     try:
-        res = eval(chat_completion.choices[0].message.content)  # pyright: ignore[reportArgumentType]
+        res = ast.literal_eval(chat_completion.choices[0].message.content)  # pyright: ignore[reportArgumentType]
     except Exception as e:
         print(e)
         res = "\n".split(chat_completion.choices[0].message.content)
