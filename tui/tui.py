@@ -1,6 +1,5 @@
 import json
 import os
-import os.path
 import pathlib
 import random
 import shlex
@@ -9,19 +8,11 @@ import subprocess
 import traceback
 
 import questionary
-from dotenv import load_dotenv
+
 from problem_bank_scripts import process_question_pl
 
-from .gpt import ask_mc_options, ask_number_code
 from .generate_questions import generate_true_false_choices, generate_yes_no_choices
 from .write_md import write_md_new
-
-load_dotenv()
-TESTING = False
-
-GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME")
-PL_QUESTION_PATH = pathlib.Path(os.environ["PL_QUESTION_PATH"])
-WRITE_PATH = pathlib.Path(os.environ["WRITE_PATH"])
 
 
 ch1_matching_type = {
@@ -49,22 +40,22 @@ def read_json(filename="saved.json"):
     with open(filename) as f:
         return json.load(f)
 
-def generate_given_choices(options: list, answer: str, question: str):
+
+def generate_given_choices(options: list, answer: str, question: str, use_gpt: bool):
     if answer:
         answer = answer.strip().lower()
     # Count how many empty string options
     num_empty = len([x for x in options if not x.strip()])
     options = [x.strip() for x in options if x.strip()]
     if num_empty > 0:
-        options += ask_mc_options(options, answer, question, num_empty)
+        if use_gpt:
+            from .gpt import ask_mc_options
 
-    choices = [
-        {
-            "value": f'"{option}"',
-            "correct": False,
-            "feedback": '"Try again please!"'
-        }
-    for option in options]
+            options += ask_mc_options(options, answer, question, num_empty)
+        else:
+            options += ["Placeholder"] * num_empty
+
+    choices = [{"value": f'"{option}"', "correct": False, "feedback": '"Try again please!"'} for option in options]
 
     correct = len(choices)
     if answer in options:
@@ -76,6 +67,7 @@ def generate_given_choices(options: list, answer: str, question: str):
     choices[correct]["feedback"] = '"Correct!"'
     # TODO: replace empty options with GPT generated text
     return choices
+
 
 def is_int(s: str) -> bool:
     try:
@@ -118,7 +110,8 @@ question_types = {
 def split_comma(text: str) -> list[str]:
     return [x.strip() for x in text.split(",")]
 
-def other_asks(part: dict, solution: str):
+
+def other_asks(part: dict, solution: str, use_gpt: bool):
     key = part["type"]
     question = part["question"]
     info = question_types[key]
@@ -131,7 +124,7 @@ def other_asks(part: dict, solution: str):
             num_options = ask_int("Number of options (excluding solution)", default=3)
             for i in range(num_options):
                 options.append(questionary.text(f"Option {i+1}. Press enter to generate with GPT.").ask())
-            info["choices"] = generate_given_choices(options, solution, question)
+            info["choices"] = generate_given_choices(options, solution, question, use_gpt)
         case "yes-no":
             info["choices"] = generate_yes_no_choices(solution)
             info["fixed-order"] = "true"
@@ -141,16 +134,22 @@ def other_asks(part: dict, solution: str):
         case "number-input":
             digits = ask_int("Digits")
             info["digits"] = digits
-            prefix = questionary.text(f"Prefix", default="$p=$").ask()
+            prefix = questionary.text("Prefix", default="$p=$").ask()
             if prefix:
                 info["label"] = prefix
-            suffix = questionary.text(f"Suffix").ask()
+            suffix = questionary.text("Suffix").ask()
             if suffix:
                 info["suffix"] = suffix
-            info["code"] = ask_number_code(question, solution)
+            if use_gpt:
+                from .gpt import ask_number_code
+
+                info["code"] = ask_number_code(question, solution)
+            else:
+                info["code"] = "..."
         case "matching":
             info = {**info, **ch1_matching_type}
     part["info"] = info
+
 
 def extract_variables(text: str, variables: dict) -> str:
     res = ""
@@ -200,7 +199,8 @@ def set_default(exercise: dict, key: str, value: str | list):
         write_json(exercise)
     return exercise[key]
 
-def start_tui():
+
+def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
     exercise = {}
     variables = {}
     if os.path.isfile("saved.json") and questionary.confirm("Would you like to use saved data?").ask():
@@ -365,12 +365,16 @@ def start_tui():
         write_json(exercise)
         print("Wrote to saved.json")
         full_path = pathlib.Path(write_md_new(exercise))
-        if not TESTING:
+        if create_pr:
+            GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME")
+            WRITE_PATH = pathlib.Path(os.environ["WRITE_PATH"])
             print(f"Copying question to {WRITE_PATH / full_path.parent.name}")
             shutil.copytree(src=full_path.parent, dst=WRITE_PATH / full_path.parent.name, dirs_exist_ok=True)
             CWD = WRITE_PATH / full_path.parent.name
             pr_body = [f"Closes #{issue}" for issue in issues]
-            pr_body.append("OPB 000: https://ca.prairielearn.com/pl/course_instance/4024/instructor/course_admin/questions")
+            pr_body.append(
+                "OPB 000: https://ca.prairielearn.com/pl/course_instance/4024/instructor/course_admin/questions"
+            )
             pr_body = "\n".join(pr_body)
             commands = [
                 f"git checkout --no-track -b {branch_name!r} origin/main",
@@ -382,18 +386,22 @@ def start_tui():
             for command in commands:
                 print(f"Running: {command!r}")
                 ret = subprocess.run(
-                    shlex.split(command), cwd=CWD,
-                    capture_output=True, check=True, text=True,
+                    shlex.split(command),
+                    cwd=CWD,
+                    capture_output=True,
+                    check=True,
+                    text=True,
                 )
                 print(ret.stdout)
-        process_question_pl(full_path, output_path=PL_QUESTION_PATH / full_path.parent.name , dev=True)
+        PL_QUESTION_PATH = pathlib.Path(os.environ["PL_QUESTION_PATH"])
+        process_question_pl(full_path, output_path=PL_QUESTION_PATH / full_path.parent.name, dev=True)
         print(variants)
     except Exception as e:
-        print(e)
         write_json(exercise)
         print("Wrote to saved.json")
         traceback.print_exc()
         if isinstance(e, subprocess.CalledProcessError):
             print(e.stdout)
             print(e.stderr)
-        return
+        return 1
+    return 0

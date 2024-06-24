@@ -1,12 +1,8 @@
-import os
-
 from openai import OpenAI
 
 
-client = OpenAI(
-    # This is the default and can be omitted
-    api_key=os.environ.get("OPENAI_API_KEY"),
-)
+client = OpenAI()
+
 
 def ask_number_code(question: str, answer: str | float | int) -> str:
     chat_completion = client.chat.completions.create(
@@ -26,6 +22,7 @@ def ask_number_code(question: str, answer: str | float | int) -> str:
     # check that res is a list of strings
     assert isinstance(res, str)
     return res
+
 
 def ask_mc_options(options: list, answer: str, question: str, num_to_generate: int):
     chat_completion = client.chat.completions.create(

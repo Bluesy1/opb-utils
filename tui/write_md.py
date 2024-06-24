@@ -12,9 +12,7 @@ from .similarity import text_similarity
 from .utils import apply_indent, apply_params_to_str, count_decimal_places, string_is_numeric
 
 
-# WRITE_PATH = os.environ.get("WRITE_PATH")
-WRITE_PATH = './questions'
-INFO_PATH = './info'
+WRITE_PATH = os.environ.get("WRITE_PATH") or "./questions"
 MY_NAME = os.environ.get("MY_NAME")
 MY_INITIALS = os.environ.get("MY_INITIALS")
 TAB = '  '
