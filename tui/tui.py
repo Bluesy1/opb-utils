@@ -76,10 +76,15 @@ def is_int(s: str) -> bool:
         return False
     else:
         return True
-validate_int = lambda text: True if is_int(text) else "Please enter an integer."
 
-def ask_int(question: str, default: int | str ="") -> int:
+
+def validate_int(text):
+    return True if is_int(text) else "Please enter an integer."
+
+
+def ask_int(question: str, default: int | str = "") -> int:
     return int(questionary.text(question, validate=validate_int, default=str(default)).ask())
+
 
 question_types = {
     'multiple-choice': {

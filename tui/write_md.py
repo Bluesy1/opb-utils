@@ -176,11 +176,11 @@ def num_variable_to_line_value(num: float):
 
 
 def write_code(exercise: dict):
-    indent = '        '
+    indent = " " * 8
     lines = ["data2 = pbh.create_data2()", "", f'data2["params"]["vars"]["title"] = "{exercise["title"]}"']
 
-    num_variables = exercise['num_variables']
-    variables = exercise['variables']
+    num_variables = exercise["num_variables"]
+    variables = exercise["variables"]
 
     # Randomize Variables
     # v = random.randint(2,7)
@@ -188,12 +188,12 @@ def write_code(exercise: dict):
 
     # region Handle variables
     used_by = {}
-    for (var_name, value) in variables.items():
+    for var_name, value in variables.items():
         if string_is_numeric(value):
             value = float(value)
-        if type(value) == float:
+        if isinstance(value, float):
             num = value
-            used = used_by[num] if (num in used_by) else ''
+            used = used_by.get(num, "")
             if not used:
                 used_by[num] = var_name
             line = f"{var_name} = {num_variable_to_line_value(num)}" if not used else f"{var_name} = {used}"
@@ -201,22 +201,22 @@ def write_code(exercise: dict):
         else:
             lines.append(f"{var_name} = {value}")
             used_by[value] = var_name
-    lines.append('')
-    for (var_name, value) in variables.items():
+    lines.append("")
+    for var_name, value in variables.items():
         # values = var_name.split('_') # WARNING: THIS PART WAS IN OLD
         values = [var_name]
-        cur_var_line = f"data2['params']"
+        cur_var_line = "data2['params']"
         for val in values:
             cur_var_line += f"['{val}']"
         cur_var_line += f" = {var_name}"
         lines.append(cur_var_line)
-    lines.append('')
+    lines.append("")
 
-    lines.append('# Randomize Variables')
-    for (key, values) in num_variables.items():
-        for (i, num) in enumerate(values):
+    lines.append("# Randomize Variables")
+    for key, values in num_variables.items():
+        for i, num in enumerate(values):
             cur_var_name = f"{key}_num{i+1}"
-            used = used_by[num] if (num in used_by) else ''
+            used = used_by.get(num, "")
             if not used:
                 used_by[num] = cur_var_name
 
@@ -224,79 +224,98 @@ def write_code(exercise: dict):
             lines.append(line)
 
     if "tables" in exercise:
-        for (i, table) in enumerate(exercise["tables"]):
+        for i, table in enumerate(exercise["tables"]):
             lines.append(f"table{i+1} = {table['matrix']}")
-            lines.append(f"data2['params']['table{i+1}'] = pbh.create_html_table(table{i+1}, width='550px', first_row_is_header={table['first_row_is_header']}, first_col_is_header={table['first_col_is_header']},)")
+            lines.append(
+                f"data2['params']['table{i+1}'] = pbh.create_html_table(table{i+1}, width='550px', first_row_is_header={table['first_row_is_header']}, first_col_is_header={table['first_col_is_header']},)"
+            )
 
-    lines.append('')
+    lines.append("")
     lines.append('# store the variables in the dictionary "params"')
-    for (key, values) in num_variables.items():
-        for (i, num) in enumerate(values):
+    for key, values in num_variables.items():
+        for i, num in enumerate(values):
             lines.append(f"data2['params']['{key}']['num{i+1}'] = {key}_num{i+1}")
-    lines.append('')
+    lines.append("")
 
     # endregion handle variables
 
-    if len(exercise['parts']) != len(exercise['solutions']):
+    if len(exercise["parts"]) != len(exercise["solutions"]):
         print(f"MISMATCH: parts {len(exercise['parts'])}, solns {len(exercise['solutions'])}")
         print("parts:")
 
-        print(json.dumps([x["question"] for x in exercise['parts']], indent=2))
+        print(json.dumps([x["question"] for x in exercise["parts"]], indent=2))
         print("solns:")
-        print(json.dumps(exercise['solutions'], indent=2))
+        print(json.dumps(exercise["solutions"], indent=2))
 
-    for part_num, part in enumerate(exercise['parts']):
-        if part['info']['type'] == 'multiple-choice' or part['info']['type'] == 'dropdown':
+    for part_num, part in enumerate(exercise["parts"]):
+        if part["info"]["type"] == "multiple-choice" or part["info"]["type"] == "dropdown":
             lines.append(f"# Part {part_num+1} is a {part['info']['type']} question.")
-            for choice_num, choice in enumerate(part['info']['choices']):
-                for (key, val) in choice.items():
+            for choice_num, choice in enumerate(part["info"]["choices"]):
+                for key, val in choice.items():
                     lines += [f"data2['params']['part{part_num+1}']['ans{choice_num+1}']['{key}'] = {val}"]
-                lines.append('')
-            lines.append('')
-        if part['info']['type'] == 'matching':
+                lines.append("")
+            lines.append("")
+        if part["info"]["type"] == "matching":
             lines.append(f"# Part {part_num+1} is a {part['info']['type']} question.")
-            for (key, val) in part['info']['options'].items():
+            for key, val in part["info"]["options"].items():
                 lines += [f'data2["params"]["part{part_num+1}"]["{key}"]["value"] = {val}']
-            lines.append('')
-            for s_num, statement_info in enumerate(part['info']['statements']):
-                lines += [f'data2["params"]["part{part_num+1}"]["statement{s_num+1}"]["value"] = {statement_info["value"]}']
-                lines += [f'data2["params"]["part{part_num+1}"]["statement{s_num+1}"]["matches"] = "{statement_info["matches"]}"']
-            lines.append('')
-        if part['info']['type'] == 'number-input':
+            lines.append("")
+            for s_num, statement_info in enumerate(part["info"]["statements"]):
+                lines += [
+                    f'data2["params"]["part{part_num+1}"]["statement{s_num+1}"]["value"] = {statement_info["value"]}'
+                ]
+                lines += [
+                    f'data2["params"]["part{part_num+1}"]["statement{s_num+1}"]["matches"] = "{statement_info["matches"]}"'
+                ]
+            lines.append("")
+        if part["info"]["type"] == "number-input":
             numeric_answer = None
-            words = exercise['solutions'][part_num].strip().split(' ')
-            if len(words) == 1 and string_is_numeric(exercise['solutions'][part_num].replace(',', '').strip().strip('%')):
-                numeric_answer = float(exercise['solutions'][part_num].replace(',', '').strip().strip('%'))
+            words = exercise["solutions"][part_num].strip().split(" ")
+            if len(words) == 1 and string_is_numeric(
+                exercise["solutions"][part_num].replace(",", "").strip().strip("%")
+            ):
+                numeric_answer = float(exercise["solutions"][part_num].replace(",", "").strip().strip("%"))
                 # exercise['solutions'][part_num] = f'{{{{ correct_answers.part{part_num+1}_ans }}}}' # WARNING: THIS PART WAS IN OLD
-            if len(list(filter(None, exercise['solutions'][part_num].split('\n')))) == 1 and '\\rightarrow' in exercise['solutions'][part_num]:
+            if (
+                len(list(filter(None, exercise["solutions"][part_num].split("\n")))) == 1
+                and "\\rightarrow" in exercise["solutions"][part_num]
+            ):
                 numeric_answer = 1
-                answer_section: str = exercise['solutions'][part_num].split('\\rightarrow')[-1].strip()
+                answer_section: str = exercise["solutions"][part_num].split("\\rightarrow")[-1].strip()
                 while not answer_section[-1].isdigit():
                     answer_section = answer_section[:-1]
-                while not answer_section[0].isdigit() and not answer_section[0] == '-':
+                while not answer_section[0].isdigit() and not answer_section[0] == "-":
                     answer_section = answer_section[1:]
-                numeric_answer = (float(answer_section.strip()))
-                split = exercise['solutions'][part_num].split('\\rightarrow')
-                split[-1] = split[-1].replace(answer_section, f'{{{{ correct_answers.part{part_num+1}_ans }}}}')
-                exercise['solutions'][part_num] = '\\rightarrow'.join(split)
-            if len(words) > 0 and string_is_numeric(words[-1].replace(',', '').strip()):
-                numeric_answer = float(words[-1].replace(',', '').strip())
-                exercise['solutions'][part_num] = exercise['solutions'][part_num].replace(words[-1], f'{{{{ correct_answers.part{part_num+1}_ans }}}}')
+                numeric_answer = float(answer_section.strip())
+                split = exercise["solutions"][part_num].split("\\rightarrow")
+                split[-1] = split[-1].replace(answer_section, f"{{{{ correct_answers.part{part_num+1}_ans }}}}")
+                exercise["solutions"][part_num] = "\\rightarrow".join(split)
+            if len(words) > 0 and string_is_numeric(words[-1].replace(",", "").strip()):
+                numeric_answer = float(words[-1].replace(",", "").strip())
+                exercise["solutions"][part_num] = exercise["solutions"][part_num].replace(
+                    words[-1], f"{{{{ correct_answers.part{part_num+1}_ans }}}}"
+                )
             lines.append(f"# Part {part_num+1} is a {part['info']['type']} question.")
-            end_note = '' if numeric_answer is not None else f'# TODO: insert correct answer here'
-            decimals = count_decimal_places(numeric_answer) if numeric_answer is not None else 2
-            if "code" in part['info']:
+            if numeric_answer is not None:
+                end_note = ""
+                decimals = count_decimal_places(numeric_answer)
+            else:
+                end_note = "# TODO: insert correct answer here"
+                decimals = 2
+            if "code" in part["info"]:
                 lines.append("# GPT generated solution")
-                lines.extend(part['info']['code'].splitlines())
+                lines.extend(part["info"]["code"].splitlines())
             lines.append(f"correct_part{part_num+1}_ans = {numeric_answer or ' '.join(words)}  {end_note}")
-            lines.append(f"data2['correct_answers']['part{part_num+1}_ans'] = pbh.roundp(correct_part{part_num+1}_ans, decimals={decimals})")
-            lines.append('')
+            lines.append(
+                f"data2['correct_answers']['part{part_num+1}_ans'] = pbh.roundp(correct_part{part_num+1}_ans, decimals={decimals})"
+            )
+            lines.append("")
 
     lines += ["# Update the data object with a new dict", "data.update(data2)"]
     return apply_indent(lines, indent), used_by
-        # data2["params"]["part1"]["ans1"]["value"] = pbh.roundp(42)
-        # data2["params"]["part1"]["ans1"]["correct"] = False
-        # data2["params"]["part1"]["ans1"]["feedback"] = "This is a random number, you probably selected this choice by mistake! Try again please!"
+    # data2["params"]["part1"]["ans1"]["value"] = pbh.roundp(42)
+    # data2["params"]["part1"]["ans1"]["correct"] = False
+    # data2["params"]["part1"]["ans1"]["feedback"] = "This is a random number, you probably selected this choice by mistake! Try again please!"
 
 
 def assign_graph_variables(graph: dict, i: int, num_graphs: int):
