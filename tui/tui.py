@@ -11,7 +11,7 @@ import questionary
 from problem_bank_scripts import process_question_pl
 
 from .generate_questions import generate_true_false_choices, generate_yes_no_choices
-from .write_md import write_md_new
+from .write_md import write_md
 
 
 ch1_matching_type = {
@@ -37,12 +37,12 @@ def write_json(data: dict, filename="saved.json"):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 
-def read_json(filename="saved.json"):
+def read_json(filename: str ="saved.json"):
     with open(filename) as f:
         return json.load(f)
 
 
-def generate_given_choices(options: list, answer: str, question: str, use_gpt: bool):
+def generate_given_choices(options: list[str], answer: str, question: str, use_gpt: bool):
     if answer:
         answer = answer.strip().lower()
     # Count how many empty string options
@@ -79,7 +79,7 @@ def is_int(s: str) -> bool:
         return True
 
 
-def validate_int(text):
+def validate_int(text: str):
     return True if is_int(text) else "Please enter an integer."
 
 
@@ -113,7 +113,7 @@ def other_asks(part: dict, solution: str, use_gpt: bool):
         info["type"] = key
     match key:
         case "multiple-choice" | "dropdown" | "checkbox":
-            options = []
+            options: list[str] = []
             # answer = questionary.text("Solution").ask()
             num_options = ask_int("Number of options (excluding solution)", default=3)
             for i in range(num_options):
@@ -370,7 +370,7 @@ def run_tui(*, create_pr: bool = False, use_gpt: bool = False):
         }
         write_json(exercise)
         print("Wrote to saved.json")
-        full_path = pathlib.Path(write_md_new(exercise))
+        full_path = pathlib.Path(write_md(exercise))
         if create_pr:
             GITHUB_USERNAME = os.environ.get("GITHUB_USERNAME")
             WRITE_PATH = pathlib.Path(os.environ["WRITE_PATH"])

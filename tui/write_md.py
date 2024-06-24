@@ -15,8 +15,8 @@ from .utils import apply_indent, apply_params_to_str, count_decimal_places, stri
 WRITE_PATH = os.environ.get("WRITE_PATH") or "./questions"
 MY_NAME = os.environ.get("MY_NAME")
 MY_INITIALS = os.environ.get("MY_INITIALS")
+CUSTOM_KEYS = ["type", "choices", "code"]
 TAB = " " * 2
-
 TOPICS = {
     "1": "Introduction to Data",
     "2": "Summarizing Data",
@@ -30,7 +30,7 @@ TOPICS = {
 }
 
 
-def md_part_lines(part, i, params=None, solution=None):
+def md_part_lines(part, i, params=None, solution: str | None=None):
     q_type = part["info"]["type"]
     answer_section = ""
     if q_type == "number-input":
@@ -57,57 +57,57 @@ def md_part_lines(part, i, params=None, solution=None):
     return [*result, ""]
 
 
-CUSTOM_KEYS = ["type", "choices", "code"]
-
-
 def get_pl_customizations(info: dict, index: int = 0):
-    type_ = info["type"]
+    
     pl_indent = " " * 4
-
-    customizations = {}
-    if type_ == "multiple-choice":
-        customizations = {**customizations, "weight": 1}
-    elif type_ == "number-input":
-        # # TODO: need to know if integer or not
-        # if 'sigfigs' in info and info['sigfigs'] == 'integer':
-        #     customizations["weight"] = 1
-        #     customizations["allow-blank"] = "true"
-        # else:
-        decdig_defaults = {
-            "comparison": "decdig",
-            "digits": 2,
-            "weight": 1,
-            "allow-blank": "false",
-            "label": "$d= $",
-        }
-        customizations |= decdig_defaults
-    elif type_ == "dropdown":
-        customizations |= {"weight": 1, "blank": "true"}
-    elif type_ == "checkbox":
-        customizations |= {
-            "weight": 1,
-            "partial-credit": "true",
-            "partial-credit-method": '"EDC"',
-        }
-    elif type_ == "symbolic-input":
-        customizations |= {
-            "label": "$F_r = $",
-            "variables": '"m, v, r"',
-            "weight": 1,
-            "allow-blank": "false",
-        }
-    elif type_ == "longtext":
-        customizations |= {
-            "placeholder": '"Type your answer here..."',
-            "file-name": f'"answer{index+1}.html"',
-            "quill-theme": '"snow"',
-            "directory": '"clientFilesQuestion"',
-            "source-file-name": '"sample.html"',
-        }
-    elif type_ == "file-upload":
-        customizations |= {"file-names": '"file.png, file.jpg, file.pdf, filename space.png"'}
-    elif type_ == "matching":
-        customizations |= {"weight": 1, "blank": "true"}
+    
+    match info["type"]:
+        case "multiple-choice":
+            customizations: dict[str, str | int] = {"weight": 1}
+        case "number-input":
+            # # TODO: need to know if integer or not
+            # if 'sigfigs' in info and info['sigfigs'] == 'integer':
+            #     customizations["weight"] = 1
+            #     customizations["allow-blank"] = "true"
+            # else:
+            decdig_defaults = {
+                "comparison": "decdig",
+                "digits": 2,
+                "weight": 1,
+                "allow-blank": "false",
+                "label": "$d= $",
+            }
+            customizations = decdig_defaults
+        case "dropdown":
+            customizations = {"weight": 1, "blank": "true"}
+        case "checkbox":
+            customizations = {
+                "weight": 1,
+                "partial-credit": "true",
+                "partial-credit-method": '"EDC"',
+            }
+        case "symbolic-input":
+            customizations = {
+                "label": "$F_r = $",
+                "variables": '"m, v, r"',
+                "weight": 1,
+                "allow-blank": "false",
+            }
+        case "longtext":
+            customizations = {
+                "placeholder": '"Type your answer here..."',
+                "file-name": f'"answer{index+1}.html"',
+                "quill-theme": '"snow"',
+                "directory": '"clientFilesQuestion"',
+                "source-file-name": '"sample.html"',
+            }
+        case "file-upload":
+            customizations = {"file-names": '"file.png, file.jpg, file.pdf, filename space.png"'}
+        case "matching":
+            customizations = {"weight": 1, "blank": "true"}
+        case _:
+            customizations = {}
+    
     customizations |= info
     lines = [f"{key}: {val}" for key, val in customizations.items() if key not in CUSTOM_KEYS]
 
@@ -115,15 +115,20 @@ def get_pl_customizations(info: dict, index: int = 0):
 
 
 def format_type_info(info: dict):
+
     indent = TAB
     info_type = info["type"]
     list = [f'type: {info["type"]}']
+
     if info_type == "longtext":
         list.append("gradingMethod: Manual")
+
     if info_type == "number-input" and "sigfigs" in info and info["sigfigs"] == "integer":
         list.append("label: $p=$")
+
     if info_type == "matching":
         list.append("showCorrectAnswer: true")
+    
     return apply_indent(list, indent)
 
 
@@ -482,7 +487,7 @@ def display_extras(exercise):
     return lines_to_write
 
 
-def write_md_new(exercise: dict):
+def write_md(exercise: dict):
     solutions = exercise["solutions"]
     chapter = exercise["chapter"]
 

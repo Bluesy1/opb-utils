@@ -6,7 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-def text_similarity(text1, text2):
+def text_similarity(text1: str, text2: str) -> float:
     # print(f'Comparing {type(text1)} and {type(text2)}')
     # print(f'Comparing {text1}')
     # Tokenize and lemmatize the texts

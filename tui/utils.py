@@ -1,4 +1,4 @@
-def apply_indent(lines, indent=" " * 8):
+def apply_indent(lines: list[str], indent: str =" " * 8):
     return [indent + x for x in lines]
 
 

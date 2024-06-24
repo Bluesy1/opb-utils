@@ -1,7 +1,7 @@
 import random
 
 
-def generate_given_choices(options: list, answer: str | None = None):
+def generate_given_choices(options: list[str], answer: str | None = None):
     if answer:
         answer = answer.strip().lower()
     choices = [

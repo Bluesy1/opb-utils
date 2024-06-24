@@ -26,7 +26,7 @@ def ask_number_code(question: str, answer: str | float | int) -> str:
     return res
 
 
-def ask_mc_options(options: list, answer: str, question: str, num_to_generate: int):
+def ask_mc_options(options: list[str], answer: str, question: str, num_to_generate: int):
     chat_completion = client.chat.completions.create(
         messages=[
             {
