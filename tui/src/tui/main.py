@@ -59,7 +59,7 @@ def main():
         "--no-env-file",
         action="store_false",
         help=(
-            "Do read from any environment file. "
+            "Do not read from any environment file. "
             + "If you use this, make sure the required environment variables are set in your shell's environment.  (default: False)"
         ),
     )
