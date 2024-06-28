@@ -97,7 +97,3 @@ def main():
     nltk.download("wordnet", quiet=True)
 
     return run_tui(create_pr=CREATE_PR, use_gpt=USE_GPT) or 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
