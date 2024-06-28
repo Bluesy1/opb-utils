@@ -330,7 +330,8 @@ def start_tui():
             print("solutions", solutions)
             parts_start_at = 0 if "parts" not in exercise else len(exercise["parts"])
             for p in range(parts_start_at, num_parts):
-                solutions.append(questionary.text(f"pt.{p+1} solution?").ask())
+                if p >= len(solutions):
+                    solutions.append(questionary.text(f"pt.{p+1} solution?").ask())
             # create_part
             for p in range(parts_start_at, num_parts):
                 part = {}
