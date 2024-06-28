@@ -216,7 +216,7 @@ def start_tui():
         branch_name = f"openstax_C{chapter}_Q{'_Q'.join([str(x) for x in question_numbers])}"
         exercise["branch_name"] = branch_name
         exercise["path"] = f"{branch_name}.md"
-        issues = ask_if_not_exists(exercise, key="issues", question="What issues does this resolve (comma separated)", variables=variables, parser=split_comma)
+        issues = ask_if_not_exists(exercise, key="issues", question="What issues does this resolve (comma separated, numbers only)", variables=variables, parser=split_comma)
         title = ask_if_not_exists(exercise, key="title", question="Title", variables=variables)
         desc = ask_if_not_exists(exercise, key="description", question="Description", variables=variables)
 

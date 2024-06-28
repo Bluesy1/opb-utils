@@ -41,7 +41,11 @@ def ask_mc_options(options: list, answer: str, question: str, num_to_generate: i
     )
     for choice in chat_completion.choices:
         print(choice.message.content)
-    res = eval(chat_completion.choices[0].message.content)
+    try:
+        res = eval(chat_completion.choices[0].message.content)
+    except Exception as e:
+        print(e)
+        res = "\n".split(chat_completion.choices[0].message.content)
     # check that res is a list of strings
     assert isinstance(res, list)
     assert all(isinstance(x, str) for x in res)
