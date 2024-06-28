@@ -7,7 +7,7 @@ import shlex
 import shutil
 import subprocess
 import traceback
-
+from copy import deepcopy
 import questionary
 from dotenv import load_dotenv
 from problem_bank_scripts import process_question_pl
@@ -121,7 +121,7 @@ def split_comma(text: str) -> list:
 def other_asks(part: dict, solution: str):
     key = part["type"]
     question = part["question"]
-    info = question_types[key]
+    info = deepcopy(question_types[key])
     if "type" not in info:
         info["type"] = key
     match key:
@@ -325,26 +325,34 @@ def start_tui():
                 "desc": desc,
                 "parts": set_default(exercise, "parts", [])
             }
-            solutions = [part["solution"] for part in variant["parts"]]
+            solutions = exercise["solutions"] or [part["solution"] for part in variant["parts"]]
             # solutions = [] if "solutions" not in exercise else exercise["solutions"]
             print("solutions", solutions)
-            parts_start_at = 0 if "parts" not in exercise else len(exercise["parts"])
-            for p in range(parts_start_at, num_parts):
+            # parts_start_at = 0 if "parts" not in exercise else len(exercise["parts"])
+            for p in range(0, num_parts):
                 if p >= len(solutions):
                     solutions.append(questionary.text(f"pt.{p+1} solution?").ask())
             # create_part
-            for p in range(parts_start_at, num_parts):
-                part = {}
+            for p in range(0, num_parts):
+                part = variant["parts"][p] if p < len(variant["parts"]) else {}
                 part["solution"] = extract_variables(solutions[p], variables=variables)
-                part["question"] = extract_variables(questionary.text(f"Question text for v{i+1} - pt.{p+1}").ask(), variables=variables)
 
-                part["type"] = questionary.select(
-                    f"pt.{p+1} question type?",
-                    choices=list(question_types.keys()),
-                    default=question_type_from_solution(part["solution"])
-                    ).ask()  # returns value of selection
-                other_asks(part, part["solution"])
-                variant["parts"].append(part)
+                if "question" not in part:
+                    part["question"] = extract_variables(questionary.text(f"Question text for v{i+1} - pt.{p+1}").ask(), variables=variables)
+
+                if "type" not in part:
+                    part["type"] = questionary.select(
+                        f"pt.{p+1} question type?",
+                        choices=list(question_types.keys()),
+                        default=question_type_from_solution(part["solution"])
+                        ).ask()  # returns value of selection
+                if "info" not in part:
+                    other_asks(part, part["solution"])
+
+                if p < len(variant["parts"]):
+                    variant["parts"][p] = part
+                else:
+                    variant["parts"].append(part)
 
             variants.append(variant)
 
