@@ -30,7 +30,7 @@ TOPICS = {
 }
 
 
-def md_part_lines(part, i, params=None, solution: str | None=None):
+def md_part_lines(part, i, params=None, solution: str | None = None):
     q_type = part["info"]["type"]
     answer_section = ""
     if q_type == "number-input":
@@ -58,9 +58,8 @@ def md_part_lines(part, i, params=None, solution: str | None=None):
 
 
 def get_pl_customizations(info: dict, index: int = 0):
-    
     pl_indent = " " * 4
-    
+
     match info["type"]:
         case "multiple-choice":
             customizations: dict[str, str | int] = {"weight": 1}
@@ -107,7 +106,7 @@ def get_pl_customizations(info: dict, index: int = 0):
             customizations = {"weight": 1, "blank": "true"}
         case _:
             customizations = {}
-    
+
     customizations |= info
     lines = [f"{key}: {val}" for key, val in customizations.items() if key not in CUSTOM_KEYS]
 
@@ -115,7 +114,6 @@ def get_pl_customizations(info: dict, index: int = 0):
 
 
 def format_type_info(info: dict):
-
     indent = TAB
     info_type = info["type"]
     list = [f'type: {info["type"]}']
@@ -128,7 +126,7 @@ def format_type_info(info: dict):
 
     if info_type == "matching":
         list.append("showCorrectAnswer: true")
-    
+
     return apply_indent(list, indent)
 
 

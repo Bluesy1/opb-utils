@@ -12,7 +12,7 @@ do
     git reset --hard origin/main
     echo $FILE
     out="$(basename $FILE .md)"
-    BRANCH_NAME="auto_$(basename $FILE .md)"
+    BRANCH_NAME="$(basename $FILE .md)"
     INFO_PATH=/Users/christinayang/Documents/GitHub/OPB/opb-utils/info/$out
     ASSIGN=$(cat $INFO_PATH/assign.txt)
     ISSUE_NUMBER=$(cat $INFO_PATH/issue_number.txt)
